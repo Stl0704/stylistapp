@@ -166,17 +166,21 @@ class UsuarioPersonaSerializer(serializers.Serializer):
     apellido2 = serializers.CharField(max_length=30)
     fecha_nac = serializers.DateField()
     genero_id = serializers.PrimaryKeyRelatedField(
-        queryset=Genero.objects.all(), write_only=True
+        queryset=Genero.objects.all(), source='genero', write_only=True
     )
 
     # Datos de TipoUsuario
     tipo_user_id = serializers.PrimaryKeyRelatedField(
-        queryset=TipoUsuario.objects.all(), write_only=True
+        queryset=TipoUsuario.objects.all(), source='tipo_user', write_only=True
     )
 
     def create(self, validated_data):
         # Crear el Usuario
-        usuario_data = {key: validated_data[key] for key in ['user_name', 'email', 'password']}
+        usuario_data = {
+            'user_name': validated_data['user_name'],
+            'email': validated_data['email'],
+            'password': validated_data['password']  # Guardar la contraseña directamente sin hashear
+        }
         usuario = Usuario.objects.create(**usuario_data)
         
         # Crear la Persona
@@ -185,12 +189,15 @@ class UsuarioPersonaSerializer(serializers.Serializer):
             'apellido1': validated_data['apellido1'],
             'apellido2': validated_data['apellido2'],
             'fecha_nac': validated_data['fecha_nac'],
-            'genero': validated_data['genero_id']  # Asigna el objeto Genero directamente
+            'genero': validated_data['genero']
         }
-        persona = Persona.objects.create(**persona_data, usuario=usuario)
+        persona = Persona.objects.create(**persona_data)
         
         # Crear la relación PersonaUsuario
-        tipo_user = validated_data['tipo_user_id']
-        persona_usuario = PersonaUsuario.objects.create(persona=persona, user=usuario, tipo_user=tipo_user)
+        persona_usuario = PersonaUsuario.objects.create(
+            persona=persona, 
+            user=usuario, 
+            tipo_user=validated_data['tipo_user']
+        )
 
-        return persona_usuario
+        return usuario, persona, persona_usuario
