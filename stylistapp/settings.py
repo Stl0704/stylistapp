@@ -142,9 +142,14 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.coreapi.AutoSchema",
 }
 
+#CORS TODOS LOS ORIGENES
+
+CORS_ALLOW_ALL_ORIGINS = True 
 
 #ORIGEN PERMITIDO PARA CORS:
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Añade aquí la URL de tu aplicación externa
 ]
+
+AUTHENTICATION_BACKENDS = ['api.backends.UsuarioBackend', 'django.contrib.auth.backends.ModelBackend']

@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.contrib.auth.hashers import make_password, check_password
 
 
 class Genero(models.Model):
@@ -16,10 +17,17 @@ class Persona(models.Model):
     apellido2 = models.CharField(max_length=30)
 
 class Usuario(models.Model):
-    user_id = models.AutoField(primary_key=True)
-    user_name = models.CharField(max_length=45)
-    email = models.CharField(max_length=45)
-    password = models.CharField(max_length=45)
+    user_id = models.AutoField(primary_key=True, serialize=False)
+    user_name = models.CharField(max_length=45, unique=True)
+    email = models.EmailField(max_length=45)
+    password = models.CharField(max_length=128)  # Aumenta el tamaño para almacenar el hash
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+        self.save()
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
 
 class TipoUsuario(models.Model):
     tipo_user_id = models.AutoField(primary_key=True)

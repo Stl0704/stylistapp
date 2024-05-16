@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth import authenticate
 from .models import *
 
 # SERIALIZADORES PARA INICIO REGISTRO Y ACTUALIZACION DE DATOS DEL USUARIO.
@@ -143,22 +144,38 @@ class DistritoSerializer(serializers.ModelSerializer):
     # PETICION JSON
     
 #     {
-#     "user_name": "lale",
-#     "email": "lale@123.com",
+#     "user_name": "mario",
+#     "email": "mariohash@123.com",
 #     "password": "12345678",
-#     "nombre": "lale",
+#     "nombre": "lalo hash",
 #     "apellido1": "landa",
 #     "apellido2": "landa",
-#     "fecha_nac": "2004-03-19",
+#     "fecha_nac": "2004-11-13",
 #     "genero_id": 2,
 #     "tipo_user_id": 1
 # }
+
+#PETICION INICIO SESION
+
+# {
+#   "user_name": "lalo",
+#   "password": "12345678"
+# }
+
+
+
+
+
+
+
+
+# Serializer Crear Usuario-Persona
 
 class UsuarioPersonaSerializer(serializers.Serializer):
     # Datos de Usuario
     user_name = serializers.CharField(max_length=45)
     email = serializers.CharField(max_length=45)
-    password = serializers.CharField(max_length=45)
+    password = serializers.CharField(max_length=45, write_only=True)
     
     # Datos de Persona
     nombre = serializers.CharField(max_length=55)
@@ -178,10 +195,11 @@ class UsuarioPersonaSerializer(serializers.Serializer):
         # Crear el Usuario
         usuario_data = {
             'user_name': validated_data['user_name'],
-            'email': validated_data['email'],
-            'password': validated_data['password']  # Guardar la contraseña directamente sin hashear
+            'email': validated_data['email']
         }
+        password = validated_data['password']
         usuario = Usuario.objects.create(**usuario_data)
+        usuario.set_password(password)
         
         # Crear la Persona
         persona_data = {
@@ -201,3 +219,18 @@ class UsuarioPersonaSerializer(serializers.Serializer):
         )
 
         return usuario, persona, persona_usuario
+
+
+#serializer de inicio sesion:
+
+class LoginSerializer(serializers.Serializer):
+    user_name = serializers.CharField(max_length=45)
+    password = serializers.CharField(max_length=45, write_only=True)
+
+    def validate(self, data):
+        user_name = data.get("user_name")
+        password = data.get("password")
+        user = authenticate(username=user_name, password=password)
+        if user is None:
+            raise serializers.ValidationError("Credenciales inválidas.")
+        return data
