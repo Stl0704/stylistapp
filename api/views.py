@@ -36,21 +36,6 @@ def registrar_usuario_persona(request):
 
 
 
-# CONTINUIDAD INICIO_SESION
-
-# @api_view(['POST'])
-# def Inicio_Sesion(request):
-#     if request.method == 'POST':
-#         email = request.data.get('email')
-#         password = request.data.get('password')
-        
-#         user = (email == 'email', password='password')
-        
-#         if user:
-#             token, _ = Token.objects.get_or_create(user=user)
-#             return Response({'token': token.key}, status=status.HTTP_200_OK)
-#         else:
-#             return Response({'error': 'Credenciales inválidas'}, status=status.)
 
 @api_view(['POST'])
 def iniciar_sesion(request):

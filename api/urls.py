@@ -11,5 +11,5 @@ router.register(r'Persona',views.PersonaInicio)
 urlpatterns = [
     path('',include (router.urls)),
     path('registrar/', registrar_usuario_persona, name='registrar_usuario_persona'),
-    path('login', iniciar_sesion, name='iniciar_sesion'),
+    path('login/', iniciar_sesion, name='iniciar_sesion'),
 ]

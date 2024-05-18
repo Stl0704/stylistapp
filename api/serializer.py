@@ -126,14 +126,6 @@ class CitaSerializer(serializers.ModelSerializer):
         model = Cita
         fields = ['cita_id', 'prestador_serv', 'cliente', 'servicio', 'fecha_hora', 'duracion', 'local']
 
-# DISTRITO
-
-class DistritoSerializer(serializers.ModelSerializer):
-    local = serializers.StringRelatedField()
-
-    class Meta:
-        model = Distrito
-        fields = ['distrito_id', 'nombre_distrito', 'local']
 
 
 ## FUNCIONES:
@@ -144,15 +136,15 @@ class DistritoSerializer(serializers.ModelSerializer):
     # PETICION JSON
     
 #     {
-#     "user_name": "mario",
-#     "email": "mariohash@123.com",
+#     "user_name": "daniel",
+#     "email": "danihash@123.com",
 #     "password": "12345678",
-#     "nombre": "lalo hash",
-#     "apellido1": "landa",
-#     "apellido2": "landa",
-#     "fecha_nac": "2004-11-13",
-#     "genero_id": 2,
-#     "tipo_user_id": 1
+#     "nombre": "dani hash",
+#     "apellido1": "paz",
+#     "apellido2": "paz",
+#     "fecha_nac": "2000-11-13",
+#     "genero_id": 1,
+#     "tipo_user_id": 2
 # }
 
 #PETICION INICIO SESION
@@ -234,3 +226,8 @@ class LoginSerializer(serializers.Serializer):
         if user is None:
             raise serializers.ValidationError("Credenciales inválidas.")
         return data
+    
+    
+    
+    
+    

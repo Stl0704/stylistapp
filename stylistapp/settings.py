@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-6%d4jwptv&!!qu@p68^)9b7*t=7jffvg75$rhq22ql!4l978z=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']   #['127.0.0.1','localhost', '192.168.1.7']
 
 
 # Application definition
@@ -150,6 +150,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Añade aquí la URL de tu aplicación externa
+    "http://localhost:8100",
 ]
 
 AUTHENTICATION_BACKENDS = ['api.backends.UsuarioBackend', 'django.contrib.auth.backends.ModelBackend']
