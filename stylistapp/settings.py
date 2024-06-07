@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-6%d4jwptv&!!qu@p68^)9b7*t=7jffvg75$rhq22ql!4l978z=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']   #['127.0.0.1','localhost', '192.168.1.7']
+ALLOWED_HOSTS = ['*']  # ['127.0.0.1','localhost', '192.168.1.7']
 
 
 # Application definition
@@ -41,10 +41,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'coreapi',
     'api',
-    
+
 ]
 
 MIDDLEWARE = [
@@ -55,7 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #MIDDLEWARE CORS
+    # MIDDLEWARE CORS
     'corsheaders.middleware.CorsMiddleware',
 ]
 
@@ -89,8 +90,8 @@ DATABASES = {
         'NAME': 'stylistapp',
         'USER': 'lalolanda',
         'PASSWORD': 'lal0landa',
-        'HOST': 'localhost', 
-        'PORT': '3306', 
+        'HOST': 'localhost',
+        'PORT': '3306',
     }
 }
 
@@ -138,19 +139,43 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 REST_FRAMEWORK = {
-    ...: ...,
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
     "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.coreapi.AutoSchema",
 }
 
-#CORS TODOS LOS ORIGENES
 
-CORS_ALLOW_ALL_ORIGINS = True 
+# CORS TODOS LOS ORIGENES
 
-#ORIGEN PERMITIDO PARA CORS:
+CORS_ALLOW_ALL_ORIGINS = True
+
+# ORIGEN PERMITIDO PARA CORS:
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Añade aquí la URL de tu aplicación externa
+    "http://localhost:9000",  # Añade aquí la URL de tu aplicación externa
     "http://localhost:8100",
 ]
 
-AUTHENTICATION_BACKENDS = ['api.backends.UsuarioBackend', 'django.contrib.auth.backends.ModelBackend']
+AUTHENTICATION_BACKENDS = ['api.backends.UsuarioBackend',
+                           'django.contrib.auth.backends.ModelBackend']
+
+
+# CONFIGURACION JWT
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'user_id',
+    'USER_ID_CLAIM': 'user_id',
+}
