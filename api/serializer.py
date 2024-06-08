@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 from django.contrib.auth import authenticate
 from .models import *
 
@@ -36,22 +35,6 @@ class ProductoSerializer(serializers.ModelSerializer):
 
 # FUNCIONES:
 
-# CREAR PERSONA-USUARIO
-
-    # PETICION JSON
-
-# {
-#     "tipo_usuario": "cliente",
-#     "user_name": "lala",
-#     "email": "lalahash@123.com",
-#     "password": "12345678",
-#     "nombre": "lala hash",
-#     "apellido1": "PRAXI",
-#     "apellido2": "PRAXI",
-#     "fecha_nac": "1945-06-30",
-#     "genero_id": 2
-# }
-
 
 # PETICION INICIO SESION
 
@@ -60,16 +43,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 #   "password": "12345678"
 # }
 
-# PETICION REGISTRO DE SERVICIO:
-
-# {
-#     "user_id": 2,
-#     "especialidad": "Terapia física",
-#     "experiencia": "Más de 10 años en rehabilitación física",
-#     "presentacion": "Soy especialista en rehabilitación y terapias para mejorar la movilidad y el bienestar.",
-#     "calificacion": 4
-# }
-
+# REGISTRO DE PRODUCTO
 
 # {
 #     "nombre_prod": "",
@@ -85,13 +59,13 @@ class ProductoSerializer(serializers.ModelSerializer):
 # SOLICITUD CREACION USUARIO PRESTADOR DE SERVICIOS
 
 # {
-#     "user_name": " Ana stylist 2",
-#     "email": "prestador@example.com",
+#     "user_name": " Mario_Cliente",
+#     "email": "cliente@example.com",
 #     "password": "12345678",
-#     "nombre": "gabi",
-#     "apellido1": "andre",
-#     "apellido2": "García",
-#     "fecha_nac": "1985-08-30",
+#     "nombre": "Mario",
+#     "apellido1": "Fica",
+#     "apellido2": "Sanchez",
+#     "fecha_nac": "1993-09-14",
 #     "genero_id": 2,
 #     "tipo_usuario": "prestador",
 #     "especialidad": "quiropractica terapéutica",
@@ -211,38 +185,38 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Credenciales inválidas.")
         return data
 
+# REGISTRO DE SERVICIOS
 
-# SERIALIZADOR DE SERVICIO A PRESTAR:
 
+class ServicioAPrestarSerializer(serializers.ModelSerializer):
+    # Usa StringRelatedField o PrimaryKeyRelatedField según prefieras representar los datos
+    servicio = serializers.PrimaryKeyRelatedField(
+        queryset=Servicio.objects.all())
+    prestador_serv = serializers.PrimaryKeyRelatedField(
+        queryset=PrestadorServicios.objects.all())
+    local = serializers.PrimaryKeyRelatedField(queryset=Local.objects.all())
 
-# class PrestadorServiciosSerializer(serializers.ModelSerializer):
-#     # Campo para recibir el ID del usuario
-#     user_id = serializers.IntegerField(write_only=True)
+    class Meta:
+        model = ServicioAPrestar
+        fields = ['servicio', 'prestador_serv',
+                  'local', 'tarifa', 'disponibilidad']
 
-#     class Meta:
-#         model = PrestadorServicios
-#         fields = ['user_id', 'especialidad',
-#                   'experiencia', 'presentacion', 'calificacion']
-#         # Asegúrate de que el campo 'id' no sea editable
-#         read_only_fields = ['id']
+    def create(self, validated_data):
+        # Crear instancia de ServicioAPrestar con los datos validados
+        servicio_a_prestar = ServicioAPrestar.objects.create(**validated_data)
+        return servicio_a_prestar
 
-#     def create(self, validated_data):
-#         user_id = validated_data.pop('user_id')
-#         usuario = Usuario.objects.get(pk=user_id)  # Obtén el usuario por ID
-
-#         # Usa 'usuario_ptr' para actualizar o crear el PrestadorServicios
-#         prestador_servicio, created = PrestadorServicios.objects.update_or_create(
-#             usuario_ptr=usuario,  # Usa usuario_ptr aquí
-#             defaults=validated_data
-#         )
-#         return prestador_servicio
-
-#     def validate_user_id(self, value):
-#         # Valida que el usuario exista y pueda ser un prestador
-#         if not Usuario.objects.filter(pk=value, tipo_usuario='prestador').exists():
-#             raise serializers.ValidationError(
-#                 "El usuario especificado no existe o no es un prestador válido.")
-#         return value
+    def update(self, instance, validated_data):
+        # Actualizar instancia existente de ServicioAPrestar
+        instance.servicio = validated_data.get('servicio', instance.servicio)
+        instance.prestador_serv = validated_data.get(
+            'prestador_serv', instance.prestador_serv)
+        instance.local = validated_data.get('local', instance.local)
+        instance.tarifa = validated_data.get('tarifa', instance.tarifa)
+        instance.disponibilidad = validated_data.get(
+            'disponibilidad', instance.disponibilidad)
+        instance.save()
+        return instance
 
 
 # SERIALIZADOR CITAS:

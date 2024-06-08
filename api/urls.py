@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (registrar_usuario_persona, iniciar_sesion,
-                    ProductoViewSet, agendar_cita, retrasar_cita)
+                    ProductoViewSet, agendar_cita, retrasar_cita, ServicioAPrestarView)
 
 
 router = DefaultRouter()
@@ -15,4 +15,5 @@ urlpatterns = [
     path('agendar_cita/', agendar_cita, name='agendar_cita'),
     path('retrasar_cita/<int:cita_id>/',
          retrasar_cita, name='retrasar_cita'),
+    path('servicio/', ServicioAPrestarView.as_view(), name='gestion_servicio')
 ]

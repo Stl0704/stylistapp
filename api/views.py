@@ -1,8 +1,8 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework import viewsets, status, permissions
+from rest_framework import views, viewsets, status, permissions
 from rest_framework.permissions import AllowAny
-from .serializer import UsuarioPersonaSerializer,  PrestadorServiciosSerializer,  ProductoSerializer, CitaSerializer
+from .serializer import UsuarioPersonaSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer
 from .models import Usuario, Persona, PrestadorServicios, Cliente, ServicioAPrestar, Cita, Producto
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -56,6 +56,34 @@ def iniciar_sesion(request):
 
     else:
         return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+# REGISTRO DE SERVICIOS A PRESTAR:
+
+class ServicioAPrestarView(views.APIView):
+    # Asigna permisos según sea necesario, por ejemplo, sólo los usuarios autenticados pueden crear o actualizar
+
+    def post(self, request, *args, **kwargs):
+        serializer = ServicioAPrestarSerializer(data=request.data)
+        if serializer.is_valid():
+            servicio_prestar = serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, *args, **kwargs):
+        try:
+            servicio_id = request.data.get('id')
+            servicio_prestar = ServicioAPrestar.objects.get(pk=servicio_id)
+        except ServicioAPrestar.DoesNotExist:
+            return Response({'message': 'Servicio no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        # partial=True permite actualizaciones parciales
+        serializer = ServicioAPrestarSerializer(
+            servicio_prestar, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # LISTADO DE PRODUCTOS
