@@ -1,6 +1,19 @@
 from rest_framework import serializers
+from django.db import transaction
 from django.contrib.auth import authenticate
 from .models import *
+
+
+# PERSONA
+
+
+class PersonaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Persona
+        fields = ['nombre', 'apellido1', 'apellido2', 'fecha_nac', 'genero']
+
+    def create(self, validated_data):
+        return Persona.objects.create(**validated_data)
 
 
 # PRESTADOR DE SERVICIOS
@@ -33,7 +46,7 @@ class ProductoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# FUNCIONES:
+# PETICIONES :
 
 
 # PETICION INICIO SESION
@@ -56,119 +69,153 @@ class ProductoSerializer(serializers.ModelSerializer):
 #     "local": null
 # }
 
-# SOLICITUD CREACION USUARIO PRESTADOR DE SERVICIOS
+
+# SOLICITUD CREACION USUARIO CLIENTE:
+
 
 # {
-#     "user_name": " Mario_Cliente",
-#     "email": "cliente@example.com",
+#     "user_name": "Mario",
+#     "email": "mario@example.com",
 #     "password": "12345678",
-#     "nombre": "Mario",
-#     "apellido1": "Fica",
-#     "apellido2": "Sanchez",
-#     "fecha_nac": "1993-09-14",
-#     "genero_id": 2,
-#     "tipo_usuario": "prestador",
-#     "especialidad": "quiropractica terapéutica",
-#     "experiencia": "7 años",
-#     "presentacion": "Especialista en terapias de relajación y rehabilitación",
-#     "calificacion": 4.5
+#     "tipo_usuario": "cliente",
+#     "fecha_nac": "1985-09-16",
+#     "genero_id": 1,
+#     "nombrep": "Mario",
+#     "apellido1_persona": "Bros",
+#     "apellido2_persona": "Nintendo"
 # }
 
 
-# Serializer Crear Usuario
+# SOLICITUD CREACION USUARIO PRESTADOR DE SERVICIOS
 
-class UsuarioPersonaSerializer(serializers.Serializer):
-    # Datos de Usuario
-    user_name = serializers.CharField(max_length=45)
-    email = serializers.EmailField(max_length=45)
-    password = serializers.CharField(max_length=128, write_only=True)
-    tipo_usuario = serializers.ChoiceField(
-        choices=Usuario.tipo_usuario.field.choices)
 
-    # Datos de Persona
-    nombre = serializers.CharField(max_length=55)
-    apellido1 = serializers.CharField(max_length=30)
-    apellido2 = serializers.CharField(max_length=30)
+# {
+#     "user_name": "Dani",
+#     "email": "usuario@example.com",
+#     "password": "12345678",
+#     "tipo_usuario": "prestador",
+#     "fecha_nac": "1990-01-01",
+#     "genero_id": 1,
+#     "nombrep": "Daniel",
+#     "apellido1_persona": "Paz",
+#     "apellido2_persona": "nose",
+#     "especialidad": "Cortes de cabello medievales",
+#     "experiencia": "300 años",
+#     "presentacion": "Experto en estilos antiguos y técnicas medievales de corte.",
+#     "calificacion": 0.0
+# }
+
+
+# CREAR LOCAL
+
+# {
+#   "prestador_id": "4",
+#   "nombre": "Nuevo Local de Prestador",
+#   "direccion": "123 Calle Ficticia"
+# }
+
+
+# SERIALIZADOR CREACION USUARIO PRESTADOR DE SERVICIOS
+
+class UsuarioPrestadorSerializer(serializers.ModelSerializer):
     fecha_nac = serializers.DateField()
-    genero_id = serializers.PrimaryKeyRelatedField(
-        queryset=Genero.objects.all(), write_only=True)
+    genero_id = serializers.IntegerField()  # Asume que se pasa un ID de género
+    nombrep = serializers.CharField(max_length=55)
+    apellido1_persona = serializers.CharField(max_length=30)
+    apellido2_persona = serializers.CharField(max_length=30)
+    especialidad = serializers.CharField(max_length=350)
+    experiencia = serializers.CharField(max_length=450)
+    presentacion = serializers.CharField(max_length=200)
+    calificacion = serializers.DecimalField(max_digits=3, decimal_places=2)
 
-    # Campos específicos para Cliente
-    img = serializers.CharField(
-        max_length=350, required=False, allow_blank=True)
-    puntos = serializers.IntegerField(required=False, default=0)
+    class Meta:
+        model = PrestadorServicios
+        fields = [
+            'user_name', 'email', 'password', 'tipo_usuario', 'fecha_nac',
+            'genero_id', 'nombrep', 'apellido1_persona', 'apellido2_persona',
+            'especialidad', 'experiencia', 'presentacion', 'calificacion'
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
 
-    # Campos específicos para PrestadorServicios
-    especialidad = serializers.CharField(
-        max_length=350, required=False, allow_blank=True)
-    experiencia = serializers.CharField(
-        max_length=450, required=False, allow_blank=True)
-    presentacion = serializers.CharField(
-        max_length=200, required=False, allow_blank=True)
-    calificacion = serializers.DecimalField(
-        max_digits=3, decimal_places=2, required=False, allow_null=True)
-
-    # Campos para la Cita (si es cliente)
-    cita_fecha_hora = serializers.DateTimeField(required=False)
-    cita_duracion = serializers.TimeField(required=False)
-    cita_local_id = serializers.PrimaryKeyRelatedField(
-        queryset=Local.objects.all(), write_only=True, required=False)
-
+    @transaction.atomic
     def create(self, validated_data):
-        # Extraer y eliminar genero de los datos validados
-        genero = validated_data.pop('genero_id')
-
-        # Crear la Persona
+        # Creación de la entidad Persona
+        genero = Genero.objects.get(pk=validated_data.pop('genero_id'))
         persona_data = {
-            'nombre': validated_data.pop('nombre'),
-            'apellido1': validated_data.pop('apellido1'),
-            'apellido2': validated_data.pop('apellido2'),
+            'nombre': validated_data.pop('nombrep'),
+            'apellido1': validated_data.pop('apellido1_persona'),
+            'apellido2': validated_data.pop('apellido2_persona'),
             'fecha_nac': validated_data.pop('fecha_nac'),
-            'genero': genero
+            'genero': genero,
         }
         persona = Persona.objects.create(**persona_data)
 
-        # Crear el Usuario y hashear la contraseña usando el método del modelo
-        usuario_data = {
-            'user_name': validated_data.pop('user_name'),
-            'email': validated_data.pop('email'),
-            'tipo_usuario': validated_data.pop('tipo_usuario')
-        }
-        usuario = Usuario(**usuario_data)
-        usuario.set_password(validated_data.pop('password'))
+        # Extracción y creación de Usuario o PrestadorServicios
+        password = validated_data.pop('password')
+        usuario_data = {key: validated_data.pop(key) for key in [
+            'user_name', 'email', 'tipo_usuario'] if key in validated_data}
+        prestador_data = {key: validated_data.pop(key) for key in [
+            'especialidad', 'experiencia', 'presentacion', 'calificacion'] if key in validated_data}
+
+        usuario = PrestadorServicios(**usuario_data, **prestador_data)
+        usuario.set_password(password)
         usuario.save()
 
-        # Crear la relación PersonaUsuario
+        # Vinculación entre Persona y Usuario mediante PersonaUsuario
         PersonaUsuario.objects.create(persona=persona, user=usuario)
 
-        # Dependiendo del tipo de usuario, crea el perfil correspondiente
-        if usuario.tipo_usuario == 'cliente':
-            cliente = Cliente.objects.create(
-                user_ptr=usuario,
-                img=validated_data.get('img', ''),
-                puntos=validated_data.get('puntos', 0)
-            )
+        return usuario
 
-            # Registrar una cita si se proporcionan los datos necesarios
-            if 'cita_fecha_hora' in validated_data and 'cita_duracion' in validated_data and 'cita_local_id' in validated_data:
-                Cita.objects.create(
-                    prestador_serv=None,  # Esto debe actualizarse según la lógica de la aplicación
-                    cliente=cliente,
-                    fecha_hora=validated_data.get('cita_fecha_hora'),
-                    duracion=validated_data.get('cita_duracion'),
-                    local=validated_data.get('cita_local_id')
-                )
 
-        elif usuario.tipo_usuario == 'prestador':
-            PrestadorServicios.objects.create(
-                user_ptr=usuario,
-                especialidad=validated_data.get('especialidad', ''),
-                experiencia=validated_data.get('experiencia', ''),
-                presentacion=validated_data.get('presentacion', ''),
-                calificacion=validated_data.get('calificacion', 0)
-            )
+# SERIALIZADOR CREACION USUARIO CLIENTE
 
-        return usuario, persona
+class UsuarioClienteSerializer(serializers.ModelSerializer):
+    fecha_nac = serializers.DateField()
+    genero_id = serializers.IntegerField()  # Asume que se pasa un ID de género
+    nombrep = serializers.CharField(max_length=55)
+    apellido1_persona = serializers.CharField(max_length=30)
+    apellido2_persona = serializers.CharField(max_length=30)
+    img = serializers.CharField(max_length=350, required=False)
+    # Puntos comienzan en cero y no se actualizan en la creación
+    puntos = serializers.IntegerField(default=0, read_only=True)
+
+    class Meta:
+        model = Cliente
+        fields = [
+            'user_name', 'email', 'password', 'tipo_usuario', 'fecha_nac',
+            'genero_id', 'nombrep', 'apellido1_persona', 'apellido2_persona',
+            'img', 'puntos'
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    @transaction.atomic
+    def create(self, validated_data):
+        # Creación de la entidad Persona
+        genero = Genero.objects.get(pk=validated_data.pop('genero_id'))
+        persona_data = {
+            'nombre': validated_data.pop('nombrep'),
+            'apellido1': validated_data.pop('apellido1_persona'),
+            'apellido2': validated_data.pop('apellido2_persona'),
+            'fecha_nac': validated_data.pop('fecha_nac'),
+            'genero': genero,
+        }
+        persona = Persona.objects.create(**persona_data)
+
+        # Extracción y creación de Usuario o Cliente
+        password = validated_data.pop('password')
+        usuario_data = {key: validated_data.pop(key) for key in [
+            'user_name', 'email', 'tipo_usuario'] if key in validated_data}
+        cliente_data = {key: validated_data.pop(key, None) for key in [
+            'img', 'puntos'] if key in validated_data}
+
+        usuario = Cliente(**usuario_data, **cliente_data)
+        usuario.set_password(password)
+        usuario.save()
+
+        # Vinculación entre Persona y Usuario mediante PersonaUsuario
+        PersonaUsuario.objects.create(persona=persona, user=usuario)
+
+        return usuario
 
 
 # SERIALIZADOR  DE INICIO DE SESION:
@@ -185,38 +232,48 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Credenciales inválidas.")
         return data
 
-# REGISTRO DE SERVICIOS
+
+# SERIALIZADOR TIPOS DE USUARIO :
 
 
-class ServicioAPrestarSerializer(serializers.ModelSerializer):
-    # Usa StringRelatedField o PrimaryKeyRelatedField según prefieras representar los datos
-    servicio = serializers.PrimaryKeyRelatedField(
-        queryset=Servicio.objects.all())
-    prestador_serv = serializers.PrimaryKeyRelatedField(
-        queryset=PrestadorServicios.objects.all())
-    local = serializers.PrimaryKeyRelatedField(queryset=Local.objects.all())
-
+class PrestadorServiciosSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ServicioAPrestar
-        fields = ['servicio', 'prestador_serv',
-                  'local', 'tarifa', 'disponibilidad']
+        model = PrestadorServicios
+        fields = ['user_ptr_id', 'especialidad',
+                  'experiencia', 'presentacion', 'calificacion']
 
     def create(self, validated_data):
-        # Crear instancia de ServicioAPrestar con los datos validados
-        servicio_a_prestar = ServicioAPrestar.objects.create(**validated_data)
-        return servicio_a_prestar
+        usuario_id = validated_data.pop('user_ptr_id')
+        usuario = Usuario.objects.get(pk=usuario_id)
+        prestador = PrestadorServicios.objects.create(
+            user_ptr=usuario, **validated_data)
+        return prestador
 
-    def update(self, instance, validated_data):
-        # Actualizar instancia existente de ServicioAPrestar
-        instance.servicio = validated_data.get('servicio', instance.servicio)
-        instance.prestador_serv = validated_data.get(
-            'prestador_serv', instance.prestador_serv)
-        instance.local = validated_data.get('local', instance.local)
-        instance.tarifa = validated_data.get('tarifa', instance.tarifa)
-        instance.disponibilidad = validated_data.get(
-            'disponibilidad', instance.disponibilidad)
-        instance.save()
-        return instance
+
+class ClienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cliente
+        fields = ['user_ptr_id', 'img', 'puntos']
+
+    def create(self, validated_data):
+        usuario_id = validated_data.pop('user_ptr_id')
+        usuario = Usuario.objects.get(pk=usuario_id)
+        cliente = Cliente.objects.create(user_ptr=usuario, **validated_data)
+        return cliente
+
+
+# SERIALIZADOR LOCAL-PRESTADOR:
+
+class LocalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Local
+        fields = ['nombre', 'direccion', 'prestador']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            user = request.user
+        return Local.objects.create(**validated_data)
 
 
 # SERIALIZADOR CITAS:

@@ -2,33 +2,94 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import views, viewsets, status, permissions
 from rest_framework.permissions import AllowAny
-from .serializer import UsuarioPersonaSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer
-from .models import Usuario, Persona, PrestadorServicios, Cliente, ServicioAPrestar, Cita, Producto
+from django.http import JsonResponse
+from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer
+from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
-# FUNCION CREAR USUARIO - PERSONA
+# FUNCION CREAR USUARIO - PRESTADOR
 
 
 @api_view(['POST'])
-@permission_classes([permissions.AllowAny])
-def registrar_usuario_persona(request):
-    serializer = UsuarioPersonaSerializer(data=request.data)
+@permission_classes([AllowAny])
+def registrar_usuario_prestador(request):
+    serializer = UsuarioPrestadorSerializer(data=request.data)
     if serializer.is_valid():
         try:
-            usuario, persona = serializer.save()
+            usuario = serializer.save()
             response_data = {
                 'usuario_id': usuario.user_id,
                 'nombre_usuario': usuario.user_name,
-                'persona_id': persona.persona_id
+                'persona_id': usuario.personausuario_set.first().persona.persona_id
             }
+
             if usuario.tipo_usuario == 'cliente':
-                response_data['cliente_id'] = Cliente.objects.get(
-                    user_ptr=usuario).pk
+                # Suponiendo que cliente es una relación OneToOne
+                response_data['cliente_id'] = usuario.cliente.pk
             elif usuario.tipo_usuario == 'prestador':
-                response_data['prestador_serv_id'] = PrestadorServicios.objects.get(
-                    user_ptr=usuario).pk
+                # Suponiendo que prestador_servicios es una relación OneToOne
+                response_data['prestador_serv_id'] = usuario.prestadorservicios.pk
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# CREAR LOCAL SI ES UN USUARIO PRESTADOR
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def crear_local(request):
+    prestador_id = request.data.get('prestador_id')
+    if not prestador_id:
+        return Response({'error': 'Prestador ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        prestador = PrestadorServicios.objects.get(usuario_ptr_id=prestador_id)
+    except PrestadorServicios.DoesNotExist:
+        return Response({'error': 'Prestador not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    local_data = {
+        'nombre': request.data.get('nombre'),
+        'direccion': request.data.get('direccion'),
+        'prestador': prestador.usuario_ptr_id
+    }
+
+    serializer = LocalSerializer(data=local_data, context={'request': request})
+    if serializer.is_valid():
+        local = serializer.save()
+        return Response({
+            'message': 'Local creado con éxito',
+            'local_id': local.pk,
+            'nombre': local.nombre,
+            'direccion': local.direccion
+        }, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+ # FUNCION CREAR USUARIO - CLIENTE
+
+
+@api_view(['POST'])
+# Permite a cualquier usuario hacer una petición POST
+@permission_classes([AllowAny])
+def registrar_usuario_cliente(request):
+    serializer = UsuarioClienteSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            usuario = serializer.save()
+            response_data = {
+                'usuario_id': usuario.user_id,
+                'nombre_usuario': usuario.user_name,
+                'persona_id': usuario.personausuario_set.first().persona.persona_id,
+                'cliente_id': usuario.pk,
+                'puntos': usuario.puntos  # puntos iniciales
+            }
             return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

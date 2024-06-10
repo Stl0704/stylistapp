@@ -77,8 +77,13 @@ class Servicio(models.Model):
 
 class Local(models.Model):
     local_id = models.AutoField(primary_key=True)
-    nombre_local = models.CharField(max_length=45)
-    direcciones = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=255, blank=True, null=True)
+    prestador = models.OneToOneField(
+        PrestadorServicios, on_delete=models.CASCADE, related_name='local', null=True, blank=True)
+
+    def __str__(self):
+        return self.nombre
 
 
 class Producto(models.Model):
