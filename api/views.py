@@ -97,6 +97,8 @@ def registrar_usuario_cliente(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# FUNCION INICIO SESION
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def iniciar_sesion(request):
@@ -152,6 +154,69 @@ class ServicioAPrestarView(views.APIView):
 class ProductoViewSet(viewsets.ModelViewSet):
     queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
+
+
+# FUNCIONES DE PRODUCTO
+
+# INGRESO DE PRODUCTO
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def crear_producto(request):
+    serializer = ProductoSerializer(data=request.data)
+    if serializer.is_valid():
+        producto = serializer.save()
+        return Response(ProductoSerializer(producto).data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ELIMINAR PRODUCTO
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_producto(request, prod_id):
+    user_id = request.query_params.get('user_id')
+    if not user_id:
+        return Response({'error': 'user_id es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        usuario = Usuario.objects.get(pk=user_id)
+        if usuario.tipo_usuario != 'prestador':
+            return Response({'error': 'Acceso denegado. Solo los prestadores pueden eliminar productos.'}, status=status.HTTP_403_FORBIDDEN)
+
+        producto = Producto.objects.get(pk=prod_id)
+        if producto.local.prestador.usuario_ptr_id != usuario.user_id:
+            return Response({'error': 'No tiene permiso para eliminar este producto.'}, status=status.HTTP_403_FORBIDDEN)
+
+        producto.delete()
+        return Response({'message': 'Producto eliminado exitosamente.'}, status=status.HTTP_204_NO_CONTENT)
+
+    except Usuario.DoesNotExist:
+        return Response({'error': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    except Producto.DoesNotExist:
+        return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# MODIFICAR PRODUCTO
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def actualizar_producto(request, prod_id):
+    try:
+        producto = Producto.objects.get(pk=prod_id)
+        usuario = Usuario.objects.get(pk=request.data.get('user_id'))
+        if usuario.tipo_usuario != 'prestador':
+            return Response({'error': 'Acceso denegado. Solo los prestadores pueden modificar productos.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ProductoSerializer(
+            producto, data=request.data, partial=True)
+        if serializer.is_valid():
+            producto = serializer.save()
+            return Response(ProductoSerializer(producto).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Usuario.DoesNotExist:
+        return Response({'error': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    except Producto.DoesNotExist:
+        return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 # AGENDAR CITAS

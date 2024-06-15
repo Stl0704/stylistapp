@@ -37,14 +37,6 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
         fields = ['servicio', 'prestador_serv',
                   'local', 'tarifa', 'disponibilidad']
 
-# PRODUCTO:
-
-
-class ProductoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Producto
-        fields = '__all__'
-
 
 # PETICIONES :
 
@@ -52,7 +44,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 # PETICION INICIO SESION
 
 # {
-#   "user_name": "JohnDoe",
+#   "user_name": "mario",
 #   "password": "12345678"
 # }
 
@@ -109,10 +101,46 @@ class ProductoSerializer(serializers.ModelSerializer):
 # CREAR LOCAL
 
 # {
-#   "prestador_id": "4",
+#   "prestador_id": "5",
 #   "nombre": "Nuevo Local de Prestador",
 #   "direccion": "123 Calle Ficticia"
 # }
+
+
+# PRODUCTOS
+
+# PETICION CREAR PRODUCTO
+
+# {
+#     "nombre_prod": "Crema Hidratante",
+#     "foto": "url-a-la-imagen-de-la-crema.jpg",
+#     "cantidad": 100,
+#     "a_la_venta": true,
+#     "precio": 19990.00,
+#     "descripcion": "Crema hidratante para todo tipo de piel, 100ml.",
+#     "sku_id": "CREM100ML",
+#     "local": 1
+# }
+
+
+# PETICION MODIFICAR PRODUCTO:
+
+# {
+#   "user_id": 2,
+#   "cantidad": 50,
+#   "descripcion": "Nueva descripción del producto.",
+#   "precio": 20000.50
+# }
+
+
+# ENDPOINT PARA ELIMINAR PRODUCTO:
+
+#   http://127.0.0.1:9000/api/v1/producto/eliminar/1/?user_id=5
+
+# OJO: SOLO EL ID OWNER DEL LOCAL PODRA ELIMINAR EL PRODUCTO
+
+
+#   SERIALIZADORES FUNCIONALES
 
 
 # SERIALIZADOR CREACION USUARIO PRESTADOR DE SERVICIOS
@@ -301,3 +329,31 @@ class CitaSerializer(serializers.ModelSerializer):
         cita = Cita.objects.create(
             cliente=cliente, prestador_serv=prestador_serv, local=local, **validated_data)
         return cita
+
+
+# SERIAlIZADOR QUE MANEJA LOS PRODUCTOS
+
+class ProductoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Producto
+        fields = ['prod_id', 'nombre_prod', 'foto', 'cantidad',
+                  'a_la_venta', 'precio', 'descripcion', 'sku_id', 'local']
+
+    def create(self, validated_data):
+        producto = Producto.objects.create(**validated_data)
+        return producto
+
+    def update(self, instance, validated_data):
+        instance.nombre_prod = validated_data.get(
+            'nombre_prod', instance.nombre_prod)
+        instance.foto = validated_data.get('foto', instance.foto)
+        instance.cantidad = validated_data.get('cantidad', instance.cantidad)
+        instance.a_la_venta = validated_data.get(
+            'a_la_venta', instance.a_la_venta)
+        instance.precio = validated_data.get('precio', instance.precio)
+        instance.descripcion = validated_data.get(
+            'descripcion', instance.descripcion)
+        instance.sku_id = validated_data.get('sku_id', instance.sku_id)
+        instance.local = validated_data.get('local', instance.local)
+        instance.save()
+        return instance
