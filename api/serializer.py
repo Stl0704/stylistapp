@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 from django.contrib.auth import authenticate
 from .models import *
+from uuid import uuid4
 
 
 # PERSONA
@@ -38,26 +39,32 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
                   'local', 'tarifa', 'disponibilidad']
 
 
+# ENDPOINT GENERAL
+
+
+# python manage.py runserver 0.0.0.0:9000
 # PETICIONES :
 
+
+# USUARIOS:
 
 # PETICION INICIO SESION
 
 # {
-#   "user_name": "mario",
+#   "user_name": "javi",
 #   "password": "12345678"
 # }
 
 # REGISTRO DE PRODUCTO
 
 # {
-#     "nombre_prod": "",
-#     "foto": "",
+#     "nombre_prod": "fijador",
+#     "foto": "https://tuachl.vtexassets.com/arquivos/ids/157942-1200-auto?v=637459174431200000&width=1200&height=auto&aspect=true",
 #     "cantidad": null,
-#     "a_la_venta": false,
-#     "precio": null,
-#     "descripcion": "",
-#     "sku_id": "",
+#     "a_la_venta": true,
+#     "precio": 99000,
+#     "descripcion": "Contiene 9 extractos botánicos que contribuyen a recuperar la hidratación perdida y a conseguir un cabello con aspecto saludable y rejuvenecido.",
+#     "sku_id": "CCCTR0081127178",
 #     "local": null
 # }
 
@@ -98,16 +105,19 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # }
 
 
+# LOCALES:
+
 # CREAR LOCAL
 
 # {
-#   "prestador_id": "5",
-#   "nombre": "Nuevo Local de Prestador",
-#   "direccion": "123 Calle Ficticia"
+#   "prestador_id": "1",
+#   "nombre": "Local de Prestador",
+#   "direccion": "123 Calle Ficticia",
+#   "comuna":"31"
 # }
 
 
-# PRODUCTOS
+# PRODUCTOS:
 
 # PETICION CREAR PRODUCTO
 
@@ -128,16 +138,44 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # {
 #   "user_id": 2,
 #   "cantidad": 50,
-#   "descripcion": "Nueva descripción del producto.",
-#   "precio": 20000.50
+#   "descripcion": "Contiene 56 extractos botánicos que contribuyen a recuperar la hidratación perdida y a conseguir un cabello con aspecto saludable y rejuvenecido.",
+#   "precio": 222222
 # }
 
 
 # ENDPOINT PARA ELIMINAR PRODUCTO:
 
-#   http://127.0.0.1:9000/api/v1/producto/eliminar/1/?user_id=5
+#   http://172.20.10.5/api/v1/
 
 # OJO: SOLO EL ID OWNER DEL LOCAL PODRA ELIMINAR EL PRODUCTO
+
+
+# PETICION PARA AGENDAR CITA
+
+# {
+#     "tipo_usuario": "cliente",
+#     "cliente_id": 2,
+#     "prestador_serv_id": 3,
+#     "local_id": 1,
+#     "fecha_hora": "2024-06-30",
+#     "duracion": "01:00:00",
+#     "metodo_pago": "tarjeta",
+#     "monto_total": 120.00
+# }
+
+
+# BOLETA Y HISTORIAL DE COMPRAS
+
+
+# BOLETA
+
+
+# {
+#     "monto_total": "100.00",
+#     "metodo_pago": "tarjeta",
+#     "transaccion_id": "12345",
+#     "cita": "1"
+# }
 
 
 #   SERIALIZADORES FUNCIONALES
@@ -295,7 +333,7 @@ class ClienteSerializer(serializers.ModelSerializer):
 class LocalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Local
-        fields = ['nombre', 'direccion', 'prestador']
+        fields = ['nombre', 'direccion', 'prestador', 'comuna']
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -311,27 +349,52 @@ class CitaSerializer(serializers.ModelSerializer):
     prestador_serv_id = serializers.IntegerField(write_only=True)
     local_id = serializers.PrimaryKeyRelatedField(
         queryset=Local.objects.all(), write_only=True)
+    metodo_pago = serializers.CharField(max_length=45, write_only=True)
+    monto_total = serializers.DecimalField(
+        max_digits=10, decimal_places=2, write_only=True)
 
     class Meta:
         model = Cita
-        fields = ['cita_id', 'prestador_serv_id',
-                  'cliente_id', 'fecha_hora', 'duracion', 'local_id']
+        fields = ['fecha_hora', 'duracion', 'cliente_id',
+                  'prestador_serv_id', 'local_id', 'metodo_pago', 'monto_total']
 
+    @transaction.atomic
     def create(self, validated_data):
         cliente_id = validated_data.pop('cliente_id')
         prestador_serv_id = validated_data.pop('prestador_serv_id')
-        local = validated_data.pop('local_id')
+        local_id = validated_data.pop('local_id')
 
-        cliente = Cliente.objects.get(user_id=cliente_id)
-        prestador_serv = PrestadorServicios.objects.get(
-            user_id=prestador_serv_id)
+        # Ensure all instances exist before creating the cita
+        cliente = Cliente.objects.get(pk=cliente_id)
+        prestador_serv = PrestadorServicios.objects.get(pk=prestador_serv_id)
+        local = Local.objects.get(pk=local_id)
 
         cita = Cita.objects.create(
-            cliente=cliente, prestador_serv=prestador_serv, local=local, **validated_data)
+            cliente=cliente,
+            prestador_serv=prestador_serv,
+            local=local,
+            **validated_data
+        )
+
+        metodo_pago = validated_data.get('metodo_pago')
+        monto_total = validated_data.get('monto_total')
+        if metodo_pago and monto_total is not None:
+            try:
+                boleta = Boleta.objects.create(
+                    cita=cita,
+                    monto_total=monto_total,
+                    metodo_pago=metodo_pago,
+                    transaccion_id=str(uuid4())
+                )
+                HistorialCompra.objects.create(boleta=boleta, calificacion=0)
+            except Exception as e:
+                raise serializers.ValidationError(
+                    {'boleta': f'Failed to create boleta: {str(e)}'})
+
         return cita
 
-
 # SERIAlIZADOR QUE MANEJA LOS PRODUCTOS
+
 
 class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -357,3 +420,40 @@ class ProductoSerializer(serializers.ModelSerializer):
         instance.local = validated_data.get('local', instance.local)
         instance.save()
         return instance
+
+
+# SERIALIZERS DE BOLETA Y HISTORIAL DE COMPRA - CITAS
+
+
+# BOLETA
+
+class BoletaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Boleta
+        fields = ['boleta_id', 'fecha_emision', 'monto_total',
+                  'metodo_pago', 'transaccion_id', 'cita']
+
+    def create(self, validated_data):
+        # Asumiendo que la cita ya está creada y se pasa su ID
+        cita_id = validated_data.pop('cita')
+        cita = Cita.objects.get(cita_id=cita_id)
+        boleta = Boleta.objects.create(cita=cita, **validated_data)
+        return boleta
+
+    def update(self, instance, validated_data):
+        instance.monto_total = validated_data.get(
+            'monto_total', instance.monto_total)
+        instance.metodo_pago = validated_data.get(
+            'metodo_pago', instance.metodo_pago)
+        instance.transaccion_id = validated_data.get(
+            'transaccion_id', instance.transaccion_id)
+        instance.save()
+        return instance
+
+
+# HISTORIAL
+
+class HistorialCompraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistorialCompra
+        fields = ['hist_id', 'calificacion', 'boleta', 'fecha_registro']

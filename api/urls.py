@@ -13,7 +13,7 @@ urlpatterns = [
          name='registrar_usuario_prestador'),
     path('local/', crear_local, name='crear_local'),
     path('registrarc/', registrar_usuario_cliente, name='registrar_cliente'),
-    path('login/', iniciar_sesion, name='iniciar_sesion'),
+    path('login/', iniciar_sesion, name='iniciar_clearsesion'),
     path('agendar_cita/', agendar_cita, name='agendar_cita'),
     path('retrasar_cita/<int:cita_id>/', retrasar_cita, name='retrasar_cita'),
     path('servicio/', ServicioAPrestarView.as_view(), name='gestion_servicio'),
@@ -22,4 +22,5 @@ urlpatterns = [
          eliminar_producto, name='eliminar_producto'),
     path('producto/actualizar/<int:prod_id>/',
          actualizar_producto, name='actualizar_producto'),
+
 ]

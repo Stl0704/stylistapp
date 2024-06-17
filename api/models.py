@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from polymorphic.models import PolymorphicModel
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.contrib.auth.hashers import make_password, check_password
@@ -75,12 +76,23 @@ class Servicio(models.Model):
         return self.nombre_serv
 
 
+class Comuna(models.Model):
+    nombre = models.CharField(max_length=255)
+    poblacion = models.CharField(max_length=255)
+    area = models.FloatField()
+
+    def __str__(self):
+        return f"{self.nombre} (Población: {self.poblacion}, Área: {self.area} km²)"
+
+
 class Local(models.Model):
     local_id = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100)
     direccion = models.CharField(max_length=255, blank=True, null=True)
     prestador = models.OneToOneField(
         PrestadorServicios, on_delete=models.CASCADE, related_name='local', null=True, blank=True)
+    comuna = models.ForeignKey(
+        Comuna, on_delete=models.CASCADE, related_name='locales')
 
     def __str__(self):
         return self.nombre
@@ -121,6 +133,11 @@ class HistorialCompra(models.Model):
         ]
     )
     boleta = models.ForeignKey('Boleta', on_delete=models.CASCADE)
+    fecha_registro = models.DateTimeField(
+        default=timezone.now)  # Agrega la fecha de registro
+
+    def __str__(self):
+        return f"Historial {self.hist_id} - Boleta {self.boleta.boleta_id}"
 
 
 class Cita(models.Model):
@@ -143,9 +160,3 @@ class Boleta(models.Model):
     monto_total = models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pago = models.CharField(max_length=45)
     transaccion_id = models.CharField(max_length=45, unique=True)
-
-
-class Distrito(models.Model):
-    distrito_id = models.AutoField(primary_key=True)
-    nombre_distrito = models.CharField(max_length=45)
-    local = models.ForeignKey(Local, on_delete=models.CASCADE)

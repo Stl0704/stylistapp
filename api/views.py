@@ -1,10 +1,10 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework import views, viewsets, status, permissions
+from rest_framework import views, viewsets, status, permissions, serializers
 from rest_framework.permissions import AllowAny
 from django.http import JsonResponse
-from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer
-from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto
+from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, BoletaSerializer
+from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Boleta, HistorialCompra
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -57,7 +57,8 @@ def crear_local(request):
     local_data = {
         'nombre': request.data.get('nombre'),
         'direccion': request.data.get('direccion'),
-        'prestador': prestador.usuario_ptr_id
+        'prestador': prestador.usuario_ptr_id,
+        'comuna': request.data.get('comuna'),
     }
 
     serializer = LocalSerializer(data=local_data, context={'request': request})
@@ -112,6 +113,7 @@ def iniciar_sesion(request):
         return Response({
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'tipo_usuario': user.tipo_usuario,
             'user_id': user.user_id,
             'user_name': user.user_name,
             'email': user.email,
@@ -222,35 +224,29 @@ def actualizar_producto(request, prod_id):
 # AGENDAR CITAS
 
 @api_view(['POST'])
-@permission_classes([permissions.AllowAny])
+@permission_classes([AllowAny])
 def agendar_cita(request):
-    tipo_usuario = request.data.get('tipo_usuario', None)
-    if tipo_usuario != 'cliente':
+    if request.data.get('tipo_usuario') != 'cliente':
         return Response({'error': 'Solo los clientes pueden agendar citas.'}, status=status.HTTP_403_FORBIDDEN)
-
-    cliente_id = request.data.get('cliente_id')
-    prestador_serv_id = request.data.get('prestador_serv_id')
-
-    try:
-        cliente = Usuario.objects.get(tipo_usuario=cliente_id)
-    except Usuario.DoesNotExist:
-        return Response({'error': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-    try:
-        prestador_serv = Usuario.objects.get(
-            tipo_usuario=prestador_serv_id)
-    except PrestadorServicios.DoesNotExist:
-        return Response({'error': 'Prestador de servicios no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = CitaSerializer(data=request.data)
     if serializer.is_valid():
         try:
             cita = serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            boleta_info = {
+                'boleta_id': cita.boleta.boleta_id,
+                'monto_total': cita.boleta.monto_total,
+                'metodo_pago': cita.boleta.metodo_pago,
+                'fecha_emision': cita.boleta.fecha_emision.strftime('%Y-%m-%d %H:%M:%S')
+            } if hasattr(cita, 'boleta') and cita.boleta else 'No se pudo crear la boleta'
+            return Response({'cita_id': cita.id, 'boleta_info': boleta_info}, status=status.HTTP_201_CREATED)
+        except serializers.ValidationError as e:
+            return Response({'error': e.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # RETRASAR CITAS
 

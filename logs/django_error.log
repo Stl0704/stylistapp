@@ -1,0 +1,2 @@
+Internal Server Error: /api/v1/agendar_cita/
+"POST /api/v1/agendar_cita/ HTTP/1.1" 500 5768
