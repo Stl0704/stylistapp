@@ -51,7 +51,7 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # PETICION INICIO SESION
 
 # {
-#   "user_name": "javi",
+#   "user_name": "mario",
 #   "password": "12345678"
 # }
 
@@ -63,6 +63,7 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 #     "cantidad": null,
 #     "a_la_venta": true,
 #     "precio": 99000,
+#     "precio_venta": 99000,
 #     "descripcion": "Contiene 9 extractos botánicos que contribuyen a recuperar la hidratación perdida y a conseguir un cabello con aspecto saludable y rejuvenecido.",
 #     "sku_id": "CCCTR0081127178",
 #     "local": null
@@ -110,9 +111,9 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # CREAR LOCAL
 
 # {
-#   "prestador_id": "1",
 #   "nombre": "Local de Prestador",
 #   "direccion": "123 Calle Ficticia",
+#   "prestador_id": "1",
 #   "comuna":"31"
 # }
 
@@ -364,7 +365,6 @@ class CitaSerializer(serializers.ModelSerializer):
         prestador_serv_id = validated_data.pop('prestador_serv_id')
         local_id = validated_data.pop('local_id')
 
-        # Ensure all instances exist before creating the cita
         cliente = Cliente.objects.get(pk=cliente_id)
         prestador_serv = PrestadorServicios.objects.get(pk=prestador_serv_id)
         local = Local.objects.get(pk=local_id)
@@ -400,7 +400,7 @@ class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
         fields = ['prod_id', 'nombre_prod', 'foto', 'cantidad',
-                  'a_la_venta', 'precio', 'descripcion', 'sku_id', 'local']
+                  'a_la_venta', 'precio', 'precio_venta', 'descripcion', 'sku_id', 'local']
 
     def create(self, validated_data):
         producto = Producto.objects.create(**validated_data)
@@ -414,6 +414,8 @@ class ProductoSerializer(serializers.ModelSerializer):
         instance.a_la_venta = validated_data.get(
             'a_la_venta', instance.a_la_venta)
         instance.precio = validated_data.get('precio', instance.precio)
+        instance.precio_venta = validated_data.get(
+            'precio_venta', instance.precio_venta)
         instance.descripcion = validated_data.get(
             'descripcion', instance.descripcion)
         instance.sku_id = validated_data.get('sku_id', instance.sku_id)
@@ -434,7 +436,6 @@ class BoletaSerializer(serializers.ModelSerializer):
                   'metodo_pago', 'transaccion_id', 'cita']
 
     def create(self, validated_data):
-        # Asumiendo que la cita ya está creada y se pasa su ID
         cita_id = validated_data.pop('cita')
         cita = Cita.objects.get(cita_id=cita_id)
         boleta = Boleta.objects.create(cita=cita, **validated_data)

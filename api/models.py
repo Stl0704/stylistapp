@@ -105,6 +105,7 @@ class Producto(models.Model):
     cantidad = models.PositiveIntegerField(default=0)  # Inventario inicial
     a_la_venta = models.BooleanField(default=False)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
     descripcion = models.TextField(
         max_length=200, default='Descripción no proporcionada')
     sku_id = models.CharField(max_length=50)
