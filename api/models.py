@@ -93,6 +93,8 @@ class Local(models.Model):
         PrestadorServicios, on_delete=models.CASCADE, related_name='local', null=True, blank=True)
     comuna = models.ForeignKey(
         Comuna, on_delete=models.CASCADE, related_name='locales')
+    hora_apertura = models.TimeField()
+    hora_cierre = models.TimeField()
 
     def __str__(self):
         return self.nombre
@@ -117,11 +119,11 @@ class Producto(models.Model):
 
 
 class ServicioAPrestar(models.Model):
+    especialidad = models.CharField(max_length=350)
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE)
     prestador_serv = models.ForeignKey(
-        PrestadorServicios, on_delete=models.CASCADE)
+        PrestadorServicios, on_delete=models.CASCADE, related_name='servicios_a_prestar')
     local = models.ForeignKey(Local, on_delete=models.CASCADE)
-    tarifa = models.DecimalField(max_digits=10, decimal_places=2)
     disponibilidad = models.CharField(max_length=150)
 
 

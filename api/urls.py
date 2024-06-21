@@ -1,8 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import (registrar_usuario_prestador, crear_local, registrar_usuario_cliente, iniciar_sesion,
-                    ProductoViewSet, agendar_cita, retrasar_cita, ServicioAPrestarView,
-                    crear_producto, eliminar_producto, actualizar_producto)
+from .views import (registrar_usuario_prestador, crear_local, registrar_usuario_cliente, iniciar_sesion, ProductoViewSet, agendar_cita,
+                    retrasar_cita, ServicioAPrestarView, crear_producto, eliminar_producto, actualizar_producto, obtener_datos_usuario, obtener_productos, obtener_locales)
 
 router = DefaultRouter()
 router.register(r'productos', ProductoViewSet)
@@ -14,6 +13,7 @@ urlpatterns = [
     path('local/', crear_local, name='crear_local'),
     path('registrarc/', registrar_usuario_cliente, name='registrar_cliente'),
     path('login/', iniciar_sesion, name='iniciar_clearsesion'),
+    path('get_user/', obtener_datos_usuario, name='obtener_datos_usuario'),
     path('agendar_cita/', agendar_cita, name='agendar_cita'),
     path('retrasar_cita/<int:cita_id>/', retrasar_cita, name='retrasar_cita'),
     path('servicio/', ServicioAPrestarView.as_view(), name='gestion_servicio'),
@@ -22,5 +22,8 @@ urlpatterns = [
          eliminar_producto, name='eliminar_producto'),
     path('producto/actualizar/<int:prod_id>/',
          actualizar_producto, name='actualizar_producto'),
+    path('productoGet/', obtener_productos, name='obtener_productos'),
+    path('localGet/', obtener_locales, name='obtener_locales'),
+
 
 ]

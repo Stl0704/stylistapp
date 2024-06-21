@@ -55,15 +55,23 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 #   "password": "12345678"
 # }
 
+
+# OBTENER DATA:
+
+ #  GET /get_user/?user_name=mario&password=12345678
+
+ #  http://127.0.0.1:9000/api/v1/get_user/?user_name=mario&password=12345678
+
+
 # REGISTRO DE PRODUCTO
 
 # {
 #     "nombre_prod": "fijador",
 #     "foto": "https://tuachl.vtexassets.com/arquivos/ids/157942-1200-auto?v=637459174431200000&width=1200&height=auto&aspect=true",
-#     "cantidad": null,
+#     "cantidad": 86,
 #     "a_la_venta": true,
 #     "precio": 99000,
-#     "precio_venta": 99000,
+#     "precio_venta": 130000,
 #     "descripcion": "Contiene 9 extractos botánicos que contribuyen a recuperar la hidratación perdida y a conseguir un cabello con aspecto saludable y rejuvenecido.",
 #     "sku_id": "CCCTR0081127178",
 #     "local": null
@@ -111,10 +119,12 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # CREAR LOCAL
 
 # {
-#   "nombre": "Local de Prestador",
-#   "direccion": "123 Calle Ficticia",
-#   "prestador_id": "1",
-#   "comuna":"31"
+#     "prestador_id": 1,
+#     "nombre": "Barbería El Estilo",
+#     "direccion": "Calle Falsa 123",
+#     "comuna": 5,
+#     "hora_apertura": "09:00:00",
+#     "hora_cierre": "18:00:00"
 # }
 
 
@@ -123,11 +133,12 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # PETICION CREAR PRODUCTO
 
 # {
-#     "nombre_prod": "Crema Hidratante",
+#     "nombre_prod": "Crema Hidram m",
 #     "foto": "url-a-la-imagen-de-la-crema.jpg",
 #     "cantidad": 100,
 #     "a_la_venta": true,
-#     "precio": 19990.00,
+#     "precio": 18790.00,
+#     "precio_venta": 19990.00,
 #     "descripcion": "Crema hidratante para todo tipo de piel, 100ml.",
 #     "sku_id": "CREM100ML",
 #     "local": 1
@@ -306,11 +317,11 @@ class LoginSerializer(serializers.Serializer):
 class PrestadorServiciosSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrestadorServicios
-        fields = ['user_ptr_id', 'especialidad',
+        fields = ['usuario_ptr_id', 'especialidad',
                   'experiencia', 'presentacion', 'calificacion']
 
     def create(self, validated_data):
-        usuario_id = validated_data.pop('user_ptr_id')
+        usuario_id = validated_data.pop('usuario_ptr_id')
         usuario = Usuario.objects.get(pk=usuario_id)
         prestador = PrestadorServicios.objects.create(
             user_ptr=usuario, **validated_data)
@@ -320,13 +331,27 @@ class PrestadorServiciosSerializer(serializers.ModelSerializer):
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
-        fields = ['user_ptr_id', 'img', 'puntos']
+        fields = ['usuario_ptr_id', 'img', 'puntos']
 
     def create(self, validated_data):
-        usuario_id = validated_data.pop('user_ptr_id')
+        usuario_id = validated_data.pop('usuario_ptr_id')
         usuario = Usuario.objects.get(pk=usuario_id)
         cliente = Cliente.objects.create(user_ptr=usuario, **validated_data)
         return cliente
+
+
+class ClienteSerializerGet(serializers.ModelSerializer):
+    class Meta:
+        model = Cliente
+        fields = ['usuario_ptr_id', 'user_name',
+                  'email', 'tipo_usuario', 'img', 'puntos']
+
+
+class PrestadorServiciosSerializerGet(serializers.ModelSerializer):
+    class Meta:
+        model = PrestadorServicios
+        fields = ['usuario_ptr_id', 'user_name', 'email', 'tipo_usuario',
+                  'especialidad', 'experiencia', 'presentacion', 'calificacion']
 
 
 # SERIALIZADOR LOCAL-PRESTADOR:
@@ -334,13 +359,23 @@ class ClienteSerializer(serializers.ModelSerializer):
 class LocalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Local
-        fields = ['nombre', 'direccion', 'prestador', 'comuna']
+        fields = ['nombre', 'direccion', 'prestador',
+                  'comuna', 'hora_apertura', 'hora_cierre']
 
     def create(self, validated_data):
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             user = request.user
         return Local.objects.create(**validated_data)
+
+
+# GET LOCAL SERIALIZER
+
+class LocalGet(serializers.ModelSerializer):
+    class Meta:
+        model = Local
+        fields = ['local_id', 'nombre', 'direccion', 'prestador',
+                  'comuna', 'hora_apertura', 'hora_cierre']
 
 
 # SERIALIZADOR CITAS:
@@ -422,6 +457,15 @@ class ProductoSerializer(serializers.ModelSerializer):
         instance.local = validated_data.get('local', instance.local)
         instance.save()
         return instance
+
+# GET PRODUCTOS:
+
+
+class ProductoGet(serializers.ModelSerializer):
+    class Meta:
+        model = Producto
+        fields = ['prod_id', 'nombre_prod', 'foto', 'cantidad', 'a_la_venta',
+                  'precio', 'precio_venta', 'descripcion', 'sku_id', 'local']
 
 
 # SERIALIZERS DE BOLETA Y HISTORIAL DE COMPRA - CITAS

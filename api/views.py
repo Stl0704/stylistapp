@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import views, viewsets, status, permissions, serializers
 from rest_framework.permissions import AllowAny
 from django.http import JsonResponse
-from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, BoletaSerializer
-from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Boleta, HistorialCompra
+from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, ClienteSerializerGet, PrestadorServiciosSerializerGet, ProductoGet, LocalGet
+from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Cliente, Local, HistorialCompra
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -59,6 +59,8 @@ def crear_local(request):
         'direccion': request.data.get('direccion'),
         'prestador': prestador.usuario_ptr_id,
         'comuna': request.data.get('comuna'),
+        'hora_apertura': request.data.get('hora_apertura'),
+        'hora_cierre': request.data.get('hora_cierre')
     }
 
     serializer = LocalSerializer(data=local_data, context={'request': request})
@@ -72,6 +74,16 @@ def crear_local(request):
         }, status=status.HTTP_201_CREATED)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# GET LOCAL
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_locales(request):
+    locales = Local.objects.all()
+    serializer = LocalGet(locales, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
  # FUNCION CREAR USUARIO - CLIENTE
 
@@ -110,20 +122,57 @@ def iniciar_sesion(request):
 
     if user:
         refresh = RefreshToken.for_user(user)
-        return Response({
+        user_data = {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
             'tipo_usuario': user.tipo_usuario,
             'user_id': user.user_id,
             'user_name': user.user_name,
             'email': user.email,
-        }, status=status.HTTP_200_OK)
+        }
 
+        return Response(user_data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
 
+# GET INFO USUARIO:
+
+# ENDPOINT:    http://127.0.0.1:9000/api/v1/get_user/?user_name=mario&password=12345678
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_datos_usuario(request):
+    user_name = request.query_params.get('user_name')
+    password = request.query_params.get('password')
+
+    if not user_name or not password:
+        return Response({'error': 'Nombre de usuario y contraseña son necesarios'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = UsuarioBackend().authenticate(
+        request, username=user_name, password=password)
+
+    if not user:
+        return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    user_data = {
+        'tipo_usuario': user.tipo_usuario,
+        'user_id': user.user_id,
+        'user_name': user.user_name,
+        'email': user.email,
+    }
+
+    if isinstance(user, Cliente):
+        serializer = ClienteSerializerGet(user)
+        user_data['detalles'] = serializer.data
+    elif isinstance(user, PrestadorServicios):
+        serializer = PrestadorServiciosSerializerGet(user)
+        user_data['detalles'] = serializer.data
+
+    return Response(user_data, status=status.HTTP_200_OK)
 
 # REGISTRO DE SERVICIOS A PRESTAR:
+
 
 class ServicioAPrestarView(views.APIView):
     # Asigna permisos según sea necesario, por ejemplo, sólo los usuarios autenticados pueden crear o actualizar
@@ -219,6 +268,16 @@ def actualizar_producto(request, prod_id):
         return Response({'error': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
     except Producto.DoesNotExist:
         return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# PETICION GET PRODUCTOS:
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_productos(request):
+    productos = Producto.objects.all()
+    serializer = ProductoGet(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # AGENDAR CITAS
