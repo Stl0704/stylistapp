@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (registrar_usuario_prestador, crear_local, registrar_usuario_cliente, iniciar_sesion, ProductoViewSet, agendar_cita,
-                    retrasar_cita, ServicioAPrestarView, crear_producto, eliminar_producto, actualizar_producto, obtener_datos_usuario, obtener_productos, obtener_locales, ver_historial_compras)
+                    retrasar_cita, ServicioAPrestarView, crear_producto, eliminar_producto, actualizar_producto, obtener_datos_usuario, obtener_productos, obtener_locales, ver_historial_compras, listar_comunas)
 
 router = DefaultRouter()
 router.register(r'productos', ProductoViewSet)
@@ -26,6 +26,7 @@ urlpatterns = [
          actualizar_producto, name='actualizar_producto'),
     path('productoGet/', obtener_productos, name='obtener_productos'),
     path('localGet/', obtener_locales, name='obtener_locales'),
+    path('comunas/', listar_comunas, name='listar_comunas'),
 
 
 ]

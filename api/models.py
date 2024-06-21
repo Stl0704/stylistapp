@@ -104,7 +104,7 @@ class Producto(models.Model):
     prod_id = models.AutoField(primary_key=True)
     nombre_prod = models.CharField(max_length=100)
     foto = models.CharField(max_length=1000, default='Imagen no proporcionada')
-    cantidad = models.PositiveIntegerField(default=0)  # Inventario inicial
+    cantidad = models.PositiveIntegerField(default=0)
     a_la_venta = models.BooleanField(default=False)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
@@ -137,7 +137,7 @@ class HistorialCompra(models.Model):
     )
     boleta = models.ForeignKey('Boleta', on_delete=models.CASCADE)
     fecha_registro = models.DateTimeField(
-        default=timezone.now)  # Agrega la fecha de registro
+        default=timezone.now)
 
     def __str__(self):
         return f"Historial {self.hist_id} - Boleta {self.boleta.boleta_id}"

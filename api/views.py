@@ -3,11 +3,11 @@ from rest_framework.response import Response
 from rest_framework import views, viewsets, status, permissions, serializers
 from rest_framework.permissions import AllowAny
 from django.http import JsonResponse
-from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, ClienteSerializerGet, PrestadorServiciosSerializerGet, ProductoGet, LocalGet, HistorialCompraSerializer
-from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Cliente, Local, HistorialCompra
+from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, ClienteSerializerGet, PrestadorServiciosSerializerGet, ProductoGet, LocalGet, HistorialCompraDetalleSerializer, ComunaSerializer
+from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Cliente, Local, HistorialCompra, Comuna
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
-
+import logging
 
 # FUNCION CREAR USUARIO - PRESTADOR
 
@@ -84,6 +84,17 @@ def obtener_locales(request):
     locales = Local.objects.all()
     serializer = LocalGet(locales, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+# GET COMUNA
+
+
+@api_view(['GET'])
+def listar_comunas(request):
+    try:
+        comunas = Comuna.objects.all()
+        serializer = ComunaSerializer(comunas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
  # FUNCION CREAR USUARIO - CLIENTE
 
@@ -331,13 +342,26 @@ def retrasar_cita(request, cita_id):
 # HISTORIAL DE COMPRAS:
 
 
+logger = logging.getLogger(__name__)
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def ver_historial_compras(request, cliente_id):
     try:
-        historial = HistorialCompra.objects.filter(
-            boleta__cita__cliente__id=cliente_id)
-        serializer = HistorialCompraSerializer(historial, many=True)
+        # Realizar la consulta asegurando que se traen todas las relaciones
+        historial = HistorialCompra.objects.filter(boleta__cita__cliente_id=cliente_id).select_related(
+            'boleta', 'boleta__cita', 'boleta__cita__cliente', 'boleta__cita__prestador_serv', 'boleta__cita__local')
+
+        if not historial.exists():
+            logger.info(
+                f"No se encontraron registros para cliente_id={cliente_id}")
+            return Response([], status=status.HTTP_200_OK)
+
+        logger.info(
+            f"Historial encontrado: {historial.count()} registros para cliente_id={cliente_id}")
+        serializer = HistorialCompraDetalleSerializer(historial, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
+        logger.error(f"Error al obtener historial de compras: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

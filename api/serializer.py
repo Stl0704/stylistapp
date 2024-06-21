@@ -399,6 +399,14 @@ class LocalGet(serializers.ModelSerializer):
                   'comuna', 'hora_apertura', 'hora_cierre']
 
 
+# COMUNA
+
+class ComunaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comuna
+        fields = ['id', 'nombre', 'poblacion', 'area']
+
+
 # SERIALIZADOR CITAS:
 
 class CitaSerializer(serializers.ModelSerializer):
@@ -536,7 +544,32 @@ class BoletaSerializer(serializers.ModelSerializer):
 
 # HISTORIAL
 
-class HistorialCompraSerializer(serializers.ModelSerializer):
+class CitaDetalleSerializer(serializers.ModelSerializer):
+    # Esto mostrará el nombre del cliente en lugar del ID
+    cliente = serializers.StringRelatedField()
+    # Esto mostrará el nombre del prestador en lugar del ID
+    prestador_serv = serializers.StringRelatedField()
+    # Esto mostrará el nombre del local en lugar del ID
+    local = serializers.StringRelatedField()
+
+    class Meta:
+        model = Cita
+        fields = ['cita_id', 'fecha_hora', 'duracion',
+                  'cliente', 'prestador_serv', 'local', 'productos']
+
+
+class BoletaDetalleSerializer(serializers.ModelSerializer):
+    cita = CitaDetalleSerializer()  # Anidar el serializador de Cita
+
+    class Meta:
+        model = Boleta
+        fields = ['boleta_id', 'cita', 'fecha_emision',
+                  'monto_total', 'metodo_pago', 'transaccion_id']
+
+
+class HistorialCompraDetalleSerializer(serializers.ModelSerializer):
+    boleta = BoletaDetalleSerializer()  # Anidar el serializador de Boleta
+
     class Meta:
         model = HistorialCompra
         fields = ['hist_id', 'calificacion', 'boleta', 'fecha_registro']
