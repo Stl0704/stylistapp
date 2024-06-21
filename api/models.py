@@ -150,9 +150,15 @@ class Cita(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
     fecha_hora = models.DateTimeField()
     duracion = models.TimeField()
-    local = models.ForeignKey('Local', on_delete=models.CASCADE)
+    local = models.ForeignKey(
+        Local, on_delete=models.CASCADE)  # Relación con Local
     boleta = models.OneToOneField(
         'Boleta', on_delete=models.CASCADE, null=True, blank=True, related_name='cita_cita')
+    # Almacena productos y precios, incluyendo detalles del local
+    productos = models.JSONField(default=list)
+
+    def __str__(self):
+        return f"{self.prestador_serv} - {self.cliente} - {self.fecha_hora} - {self.local}"
 
 
 class Boleta(models.Model):
@@ -163,3 +169,6 @@ class Boleta(models.Model):
     monto_total = models.DecimalField(max_digits=10, decimal_places=2)
     metodo_pago = models.CharField(max_length=45)
     transaccion_id = models.CharField(max_length=45, unique=True)
+
+    def __str__(self):
+        return f"{self.cita} - {self.monto_total}"

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import views, viewsets, status, permissions, serializers
 from rest_framework.permissions import AllowAny
 from django.http import JsonResponse
-from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, ClienteSerializerGet, PrestadorServiciosSerializerGet, ProductoGet, LocalGet
+from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, ClienteSerializerGet, PrestadorServiciosSerializerGet, ProductoGet, LocalGet, HistorialCompraSerializer
 from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Cliente, Local, HistorialCompra
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -298,14 +298,13 @@ def agendar_cita(request):
                 'metodo_pago': cita.boleta.metodo_pago,
                 'fecha_emision': cita.boleta.fecha_emision.strftime('%Y-%m-%d %H:%M:%S')
             } if hasattr(cita, 'boleta') and cita.boleta else 'No se pudo crear la boleta'
-            return Response({'cita_id': cita.id, 'boleta_info': boleta_info}, status=status.HTTP_201_CREATED)
+            return Response({'cita_id': cita.cita_id, 'boleta_info': boleta_info}, status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
             return Response({'error': e.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 # RETRASAR CITAS
 
@@ -328,3 +327,17 @@ def retrasar_cita(request, cita_id):
     cita.fecha_hora = nueva_fecha_hora
     cita.save()
     return Response({'message': 'Cita retrasada exitosamente.'}, status=status.HTTP_200_OK)
+
+# HISTORIAL DE COMPRAS:
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def ver_historial_compras(request, cliente_id):
+    try:
+        historial = HistorialCompra.objects.filter(
+            boleta__cita__cliente__id=cliente_id)
+        serializer = HistorialCompraSerializer(historial, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

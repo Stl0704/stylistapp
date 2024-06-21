@@ -119,12 +119,12 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 # CREAR LOCAL
 
 # {
-#     "prestador_id": 1,
-#     "nombre": "Barbería El Estilo",
-#     "direccion": "Calle Falsa 123",
+#     "prestador_id": 21,
+#     "nombre": "Barbería El Futuro",
+#     "direccion": "Calle Futra 6000",
 #     "comuna": 5,
 #     "hora_apertura": "09:00:00",
-#     "hora_cierre": "18:00:00"
+#     "hora_cierre": "20:00:00"
 # }
 
 
@@ -157,7 +157,8 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 
 # ENDPOINT PARA ELIMINAR PRODUCTO:
 
-#   http://172.20.10.5/api/v1/
+#   http://127.0.0.1:9000/api/v1/producto/eliminar/21/?user_id=21
+
 
 # OJO: SOLO EL ID OWNER DEL LOCAL PODRA ELIMINAR EL PRODUCTO
 
@@ -173,6 +174,26 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 #     "duracion": "01:00:00",
 #     "metodo_pago": "tarjeta",
 #     "monto_total": 120.00
+# }
+
+# GENDAR CITA SEGUNDA VERSION:
+
+# {
+#   "fecha_hora": "2024-07-01T10:00:00Z",
+#   "duracion": "01:00:00",
+#   "cliente_id": 23,
+#   "prestador_serv_id": 1,
+#   "local_id": 1,
+#   "metodo_pago": "tarjeta",
+#   "monto_total": 15000.00,
+#   "productos": [
+#     {
+#       "nombre": "Cepillo de pelo",
+#       "precio": 90000,
+#       "cantidad": 2
+#     }
+#   ],
+#   "tipo_usuario": "cliente"
 # }
 
 
@@ -383,22 +404,24 @@ class LocalGet(serializers.ModelSerializer):
 class CitaSerializer(serializers.ModelSerializer):
     cliente_id = serializers.IntegerField(write_only=True)
     prestador_serv_id = serializers.IntegerField(write_only=True)
-    local_id = serializers.PrimaryKeyRelatedField(
-        queryset=Local.objects.all(), write_only=True)
+    local_id = serializers.IntegerField(write_only=True)
     metodo_pago = serializers.CharField(max_length=45, write_only=True)
     monto_total = serializers.DecimalField(
         max_digits=10, decimal_places=2, write_only=True)
+    # Campo para manejar productos en formato JSON
+    productos = serializers.JSONField()
 
     class Meta:
         model = Cita
         fields = ['fecha_hora', 'duracion', 'cliente_id',
-                  'prestador_serv_id', 'local_id', 'metodo_pago', 'monto_total']
+                  'prestador_serv_id', 'local_id', 'metodo_pago', 'monto_total', 'productos']
 
     @transaction.atomic
     def create(self, validated_data):
         cliente_id = validated_data.pop('cliente_id')
         prestador_serv_id = validated_data.pop('prestador_serv_id')
         local_id = validated_data.pop('local_id')
+        productos = validated_data.pop('productos')
 
         cliente = Cliente.objects.get(pk=cliente_id)
         prestador_serv = PrestadorServicios.objects.get(pk=prestador_serv_id)
@@ -408,7 +431,9 @@ class CitaSerializer(serializers.ModelSerializer):
             cliente=cliente,
             prestador_serv=prestador_serv,
             local=local,
-            **validated_data
+            productos=productos,
+            fecha_hora=validated_data['fecha_hora'],
+            duracion=validated_data['duracion']
         )
 
         metodo_pago = validated_data.get('metodo_pago')
@@ -427,6 +452,19 @@ class CitaSerializer(serializers.ModelSerializer):
                     {'boleta': f'Failed to create boleta: {str(e)}'})
 
         return cita
+
+    def validate_productos(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Productos debe ser una lista.")
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError(
+                    "Cada producto debe ser un diccionario.")
+            required_keys = {'nombre', 'precio', 'cantidad'}
+            if not required_keys.issubset(item.keys()):
+                raise serializers.ValidationError(
+                    f"Cada producto debe contener las claves: {required_keys}")
+        return value
 
 # SERIAlIZADOR QUE MANEJA LOS PRODUCTOS
 
