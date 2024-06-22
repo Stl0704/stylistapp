@@ -82,15 +82,15 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 
 
 # {
-#     "user_name": "Mario",
-#     "email": "mario@example.com",
+#     "user_name": "Francisco",
+#     "email": "Francisco@example.com",
 #     "password": "12345678",
 #     "tipo_usuario": "cliente",
 #     "fecha_nac": "1985-09-16",
-#     "genero_id": 1,
-#     "nombrep": "Mario",
-#     "apellido1_persona": "Bros",
-#     "apellido2_persona": "Nintendo"
+#     "genero_id": 2,
+#     "nombrep": "Francisco",
+#     "apellido1_persona": "Fica",
+#     "apellido2_persona": "Sánchez"
 # }
 
 
