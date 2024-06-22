@@ -102,7 +102,6 @@ def listar_comunas(request):
 
 
 @api_view(['POST'])
-# Permite a cualquier usuario hacer una petición POST
 @permission_classes([AllowAny])
 def registrar_usuario_cliente(request):
     serializer = UsuarioClienteSerializer(data=request.data)
@@ -114,7 +113,7 @@ def registrar_usuario_cliente(request):
                 'nombre_usuario': usuario.user_name,
                 'persona_id': usuario.personausuario_set.first().persona.persona_id,
                 'cliente_id': usuario.pk,
-                'puntos': usuario.puntos  # puntos iniciales
+                'puntos': usuario.puntos
             }
             return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -193,13 +192,13 @@ class PrestadorServiciosListView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend,
                        filters.SearchFilter, filters.OrderingFilter]
 
-    # Definir campos para filtrado, búsqueda y ordenación
+    # Filtrado, búsqueda y ordenación
     filterset_fields = ['especialidad', 'experiencia', 'calificacion']
     search_fields = ['especialidad', 'presentacion']
     ordering_fields = ['calificacion', 'experiencia']
 
-    # Paginación (opcional)
-    pagination_class = None  # Puedes definir una clase de paginación aquí
+    # Paginación
+    pagination_class = None
 
 # Vista detallada para un prestador específico
 
@@ -229,7 +228,6 @@ class ServicioAPrestarView(views.APIView):
         except ServicioAPrestar.DoesNotExist:
             return Response({'message': 'Servicio no encontrado'}, status=status.HTTP_404_NOT_FOUND)
 
-        # partial=True permite actualizaciones parciales
         serializer = ServicioAPrestarSerializer(
             servicio_prestar, data=request.data, partial=True)
         if serializer.is_valid():

@@ -80,18 +80,17 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
 
 # SOLICITUD CREACION USUARIO CLIENTE:
 
-
-# {
-#     "user_name": "Francisco",
-#     "email": "Francisco@example.com",
-#     "password": "12345678",
-#     "tipo_usuario": "cliente",
-#     "fecha_nac": "1985-09-16",
-#     "genero_id": 2,
-#     "nombrep": "Francisco",
-#     "apellido1_persona": "Fica",
-#     "apellido2_persona": "Sánchez"
-# }
+    # {
+    #     "user_name": "Francisco",
+    #     "email": "Francisco@example.com",
+    #     "password": "12345678",
+    #     "tipo_usuario": "cliente",
+    #     "fecha_nac": "1985-09-16",
+    #     "genero_id": 2,
+    #     "nombrep": "Francisco",
+    #     "apellido1_persona": "Fica",
+    #     "apellido2_persona": "Sánchez"
+    # }
 
 
 # SOLICITUD CREACION USUARIO PRESTADOR DE SERVICIOS
@@ -270,12 +269,11 @@ class UsuarioPrestadorSerializer(serializers.ModelSerializer):
 
 class UsuarioClienteSerializer(serializers.ModelSerializer):
     fecha_nac = serializers.DateField()
-    genero_id = serializers.IntegerField()  # Asume que se pasa un ID de género
+    genero_id = serializers.IntegerField()
     nombrep = serializers.CharField(max_length=55)
     apellido1_persona = serializers.CharField(max_length=30)
     apellido2_persona = serializers.CharField(max_length=30)
     img = serializers.CharField(max_length=350, required=False)
-    # Puntos comienzan en cero y no se actualizan en la creación
     puntos = serializers.IntegerField(default=0, read_only=True)
 
     class Meta:
@@ -310,8 +308,6 @@ class UsuarioClienteSerializer(serializers.ModelSerializer):
         usuario = Cliente(**usuario_data, **cliente_data)
         usuario.set_password(password)
         usuario.save()
-
-        # Vinculación entre Persona y Usuario mediante PersonaUsuario
         PersonaUsuario.objects.create(persona=persona, user=usuario)
 
         return usuario
@@ -474,6 +470,7 @@ class CitaSerializer(serializers.ModelSerializer):
                     f"Cada producto debe contener las claves: {required_keys}")
         return value
 
+
 # SERIAlIZADOR QUE MANEJA LOS PRODUCTOS
 
 
@@ -503,6 +500,7 @@ class ProductoSerializer(serializers.ModelSerializer):
         instance.local = validated_data.get('local', instance.local)
         instance.save()
         return instance
+
 
 # GET PRODUCTOS:
 
