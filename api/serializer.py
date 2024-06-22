@@ -36,7 +36,7 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServicioAPrestar
         fields = ['servicio', 'prestador_serv',
-                  'local', 'tarifa', 'disponibilidad']
+                  'local', 'disponibilidad']
 
 
 # ENDPOINT GENERAL

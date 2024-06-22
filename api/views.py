@@ -1,5 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework import generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import views, viewsets, status, permissions, serializers
 from rest_framework.permissions import AllowAny
 from django.http import JsonResponse
@@ -182,11 +184,36 @@ def obtener_datos_usuario(request):
 
     return Response(user_data, status=status.HTTP_200_OK)
 
+
+# GET INFO PRESTADOR:
+
+class PrestadorServiciosListView(generics.ListAPIView):
+    queryset = PrestadorServicios.objects.all()
+    serializer_class = PrestadorServiciosSerializerGet
+    filter_backends = [DjangoFilterBackend,
+                       filters.SearchFilter, filters.OrderingFilter]
+
+    # Definir campos para filtrado, búsqueda y ordenación
+    filterset_fields = ['especialidad', 'experiencia', 'calificacion']
+    search_fields = ['especialidad', 'presentacion']
+    ordering_fields = ['calificacion', 'experiencia']
+
+    # Paginación (opcional)
+    pagination_class = None  # Puedes definir una clase de paginación aquí
+
+# Vista detallada para un prestador específico
+
+
+class PrestadorServiciosDetailView(generics.RetrieveAPIView):
+    queryset = PrestadorServicios.objects.all()
+    serializer_class = PrestadorServiciosSerializerGet
+    lookup_field = 'pk'
+
+
 # REGISTRO DE SERVICIOS A PRESTAR:
 
 
 class ServicioAPrestarView(views.APIView):
-    # Asigna permisos según sea necesario, por ejemplo, sólo los usuarios autenticados pueden crear o actualizar
 
     def post(self, request, *args, **kwargs):
         serializer = ServicioAPrestarSerializer(data=request.data)
@@ -209,6 +236,21 @@ class ServicioAPrestarView(views.APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# LISTAR TODOS LOS SERVICIOS
+
+
+class ServicioAPrestarListView(generics.ListAPIView):
+    queryset = ServicioAPrestar.objects.all()
+    serializer_class = ServicioAPrestarSerializer
+
+# SERVICIO SEGUN ID
+
+
+class ServicioAPrestarDetailView(generics.RetrieveAPIView):
+    queryset = ServicioAPrestar.objects.all()
+    serializer_class = ServicioAPrestarSerializer
+    lookup_field = 'id'
 
 
 # LISTADO DE PRODUCTOS
