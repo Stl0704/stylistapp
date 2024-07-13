@@ -1,104 +1,17 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework import generics, filters
+from rest_framework import status, generics, filters, views, viewsets
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import views, viewsets, status, permissions, serializers
 from rest_framework.permissions import AllowAny
-from django.http import JsonResponse
-from .serializer import UsuarioPrestadorSerializer, LocalSerializer, UsuarioClienteSerializer,  ServicioAPrestarSerializer,  ProductoSerializer, CitaSerializer, ClienteSerializerGet, PrestadorServiciosSerializerGet, ProductoGet, LocalGet, HistorialCompraDetalleSerializer, ComunaSerializer
-from .models import Usuario, PrestadorServicios, ServicioAPrestar, Cita, Producto, Cliente, Local, HistorialCompra, Comuna
+from .models import *
+from .serializer import *
 from .backends import UsuarioBackend
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.db import transaction
 import logging
+from django.shortcuts import get_object_or_404
 
-# FUNCION CREAR USUARIO - PRESTADOR
-
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def registrar_usuario_prestador(request):
-    serializer = UsuarioPrestadorSerializer(data=request.data)
-    if serializer.is_valid():
-        try:
-            usuario = serializer.save()
-            response_data = {
-                'usuario_id': usuario.user_id,
-                'nombre_usuario': usuario.user_name,
-                'persona_id': usuario.personausuario_set.first().persona.persona_id
-            }
-
-            if usuario.tipo_usuario == 'cliente':
-                # Suponiendo que cliente es una relación OneToOne
-                response_data['cliente_id'] = usuario.cliente.pk
-            elif usuario.tipo_usuario == 'prestador':
-                # Suponiendo que prestador_servicios es una relación OneToOne
-                response_data['prestador_serv_id'] = usuario.prestadorservicios.pk
-
-            return Response(response_data, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# CREAR LOCAL SI ES UN USUARIO PRESTADOR
-
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def crear_local(request):
-    prestador_id = request.data.get('prestador_id')
-    if not prestador_id:
-        return Response({'error': 'Prestador ID is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        prestador = PrestadorServicios.objects.get(usuario_ptr_id=prestador_id)
-    except PrestadorServicios.DoesNotExist:
-        return Response({'error': 'Prestador not found'}, status=status.HTTP_404_NOT_FOUND)
-
-    local_data = {
-        'nombre': request.data.get('nombre'),
-        'direccion': request.data.get('direccion'),
-        'prestador': prestador.usuario_ptr_id,
-        'comuna': request.data.get('comuna'),
-        'hora_apertura': request.data.get('hora_apertura'),
-        'hora_cierre': request.data.get('hora_cierre')
-    }
-
-    serializer = LocalSerializer(data=local_data, context={'request': request})
-    if serializer.is_valid():
-        local = serializer.save()
-        return Response({
-            'message': 'Local creado con éxito',
-            'local_id': local.pk,
-            'nombre': local.nombre,
-            'direccion': local.direccion
-        }, status=status.HTTP_201_CREATED)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# GET LOCAL
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def obtener_locales(request):
-    locales = Local.objects.all()
-    serializer = LocalGet(locales, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-# GET COMUNA
-
-
-@api_view(['GET'])
-def listar_comunas(request):
-    try:
-        comunas = Comuna.objects.all()
-        serializer = ComunaSerializer(comunas, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
- # FUNCION CREAR USUARIO - CLIENTE
+logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
@@ -122,7 +35,25 @@ def registrar_usuario_cliente(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# FUNCION INICIO SESION
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def registrar_usuario_prestador(request):
+    serializer = UsuarioPrestadorSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            usuario = serializer.save()
+            response_data = {
+                'usuario_id': usuario.user_id,
+                'nombre_usuario': usuario.user_name,
+                'persona_id': usuario.personausuario_set.first().persona.persona_id,
+                'prestador_serv_id': usuario.prestadorservicios.pk
+            }
+            return Response(response_data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -143,195 +74,20 @@ def iniciar_sesion(request):
             'email': user.email,
         }
 
+        # Adding the additional data
+        user_data['persona_nombre'] = user.personausuario_set.first(
+        ).persona.nombre if user.personausuario_set.exists() else None
+        user_data['local_id'] = user.local.local_id if user.tipo_usuario == 'prestador' and hasattr(
+            user, 'local') else None
+
         return Response(user_data, status=status.HTTP_200_OK)
     else:
         return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
 
-# GET INFO USUARIO:
-
-# ENDPOINT:    http://127.0.0.1:9000/api/v1/get_user/?user_name=mario&password=12345678
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def obtener_datos_usuario(request):
-    user_name = request.query_params.get('user_name')
-    password = request.query_params.get('password')
-
-    if not user_name or not password:
-        return Response({'error': 'Nombre de usuario y contraseña son necesarios'}, status=status.HTTP_400_BAD_REQUEST)
-
-    user = UsuarioBackend().authenticate(
-        request, username=user_name, password=password)
-
-    if not user:
-        return Response({'error': 'Credenciales inválidas'}, status=status.HTTP_401_UNAUTHORIZED)
-
-    user_data = {
-        'tipo_usuario': user.tipo_usuario,
-        'user_id': user.user_id,
-        'user_name': user.user_name,
-        'email': user.email,
-    }
-
-    if isinstance(user, Cliente):
-        serializer = ClienteSerializerGet(user)
-        user_data['detalles'] = serializer.data
-    elif isinstance(user, PrestadorServicios):
-        serializer = PrestadorServiciosSerializerGet(user)
-        user_data['detalles'] = serializer.data
-
-    return Response(user_data, status=status.HTTP_200_OK)
-
-
-# GET INFO PRESTADOR:
-
-class PrestadorServiciosListView(generics.ListAPIView):
-    queryset = PrestadorServicios.objects.all()
-    serializer_class = PrestadorServiciosSerializerGet
-    filter_backends = [DjangoFilterBackend,
-                       filters.SearchFilter, filters.OrderingFilter]
-
-    # Filtrado, búsqueda y ordenación
-    filterset_fields = ['especialidad', 'experiencia', 'calificacion']
-    search_fields = ['especialidad', 'presentacion']
-    ordering_fields = ['calificacion', 'experiencia']
-
-    # Paginación
-    pagination_class = None
-
-# Vista detallada para un prestador específico
-
-
-class PrestadorServiciosDetailView(generics.RetrieveAPIView):
-    queryset = PrestadorServicios.objects.all()
-    serializer_class = PrestadorServiciosSerializerGet
-    lookup_field = 'pk'
-
-
-# REGISTRO DE SERVICIOS A PRESTAR:
-
-
-class ServicioAPrestarView(views.APIView):
-
-    def post(self, request, *args, **kwargs):
-        serializer = ServicioAPrestarSerializer(data=request.data)
-        if serializer.is_valid():
-            servicio_prestar = serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def put(self, request, *args, **kwargs):
-        try:
-            servicio_id = request.data.get('id')
-            servicio_prestar = ServicioAPrestar.objects.get(pk=servicio_id)
-        except ServicioAPrestar.DoesNotExist:
-            return Response({'message': 'Servicio no encontrado'}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = ServicioAPrestarSerializer(
-            servicio_prestar, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# LISTAR TODOS LOS SERVICIOS
-
-
-class ServicioAPrestarListView(generics.ListAPIView):
-    queryset = ServicioAPrestar.objects.all()
-    serializer_class = ServicioAPrestarSerializer
-
-# SERVICIO SEGUN ID
-
-
-class ServicioAPrestarDetailView(generics.RetrieveAPIView):
-    queryset = ServicioAPrestar.objects.all()
-    serializer_class = ServicioAPrestarSerializer
-    lookup_field = 'id'
-
-
-# LISTADO DE PRODUCTOS
-
-class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.all()
-    serializer_class = ProductoSerializer
-
-
-# FUNCIONES DE PRODUCTO
-
-# INGRESO DE PRODUCTO
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def crear_producto(request):
-    serializer = ProductoSerializer(data=request.data)
-    if serializer.is_valid():
-        producto = serializer.save()
-        return Response(ProductoSerializer(producto).data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# ELIMINAR PRODUCTO
-@api_view(['DELETE'])
-@permission_classes([AllowAny])
-def eliminar_producto(request, prod_id):
-    user_id = request.query_params.get('user_id')
-    if not user_id:
-        return Response({'error': 'user_id es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        usuario = Usuario.objects.get(pk=user_id)
-        if usuario.tipo_usuario != 'prestador':
-            return Response({'error': 'Acceso denegado. Solo los prestadores pueden eliminar productos.'}, status=status.HTTP_403_FORBIDDEN)
-
-        producto = Producto.objects.get(pk=prod_id)
-        if producto.local.prestador.usuario_ptr_id != usuario.user_id:
-            return Response({'error': 'No tiene permiso para eliminar este producto.'}, status=status.HTTP_403_FORBIDDEN)
-
-        producto.delete()
-        return Response({'message': 'Producto eliminado exitosamente.'}, status=status.HTTP_204_NO_CONTENT)
-
-    except Usuario.DoesNotExist:
-        return Response({'error': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-    except Producto.DoesNotExist:
-        return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-# MODIFICAR PRODUCTO
-@api_view(['PATCH'])
-@permission_classes([AllowAny])
-def actualizar_producto(request, prod_id):
-    try:
-        producto = Producto.objects.get(pk=prod_id)
-        usuario = Usuario.objects.get(pk=request.data.get('user_id'))
-        if usuario.tipo_usuario != 'prestador':
-            return Response({'error': 'Acceso denegado. Solo los prestadores pueden modificar productos.'}, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = ProductoSerializer(
-            producto, data=request.data, partial=True)
-        if serializer.is_valid():
-            producto = serializer.save()
-            return Response(ProductoSerializer(producto).data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    except Usuario.DoesNotExist:
-        return Response({'error': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-    except Producto.DoesNotExist:
-        return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-
-# PETICION GET PRODUCTOS:
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def obtener_productos(request):
-    productos = Producto.objects.all()
-    serializer = ProductoGet(productos, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
-
+# CITAS
 
 # AGENDAR CITAS
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -361,7 +117,7 @@ def agendar_cita(request):
 
 
 @api_view(['PATCH'])
-@permission_classes([permissions.AllowAny])
+@permission_classes([AllowAny])
 def retrasar_cita(request, cita_id):
     try:
         cita = Cita.objects.get(cita_id=cita_id)
@@ -379,17 +135,375 @@ def retrasar_cita(request, cita_id):
     cita.save()
     return Response({'message': 'Cita retrasada exitosamente.'}, status=status.HTTP_200_OK)
 
-# HISTORIAL DE COMPRAS:
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_citas_cliente(request, cliente_id):
+    citas = Cita.objects.filter(cliente_id=cliente_id)
+    serializer = CitaSerializer(citas, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-logger = logging.getLogger(__name__)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_citas_prestador(request, prestador_id):
+    citas = Cita.objects.filter(prestador_serv_id=prestador_id)
+    serializer = CitaSerializer(citas, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_productos_por_local(request, local_id):
+    try:
+        local = Local.objects.get(pk=local_id)
+    except Local.DoesNotExist:
+        return Response({'message': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    productos = Producto.objects.filter(local=local)
+    serializer = ProductoSerializer(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_productos_por_inventario(request, inventario_id):
+    try:
+        inventario = Inventario.objects.get(pk=inventario_id)
+    except Inventario.DoesNotExist:
+        return Response({'message': 'Inventario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    productos = Producto.objects.filter(local=inventario.local)
+    serializer = ProductoSerializer(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def listar_productos(request):
+    productos = Producto.objects.all()
+    serializer = ProductoGet(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def agregar_producto(request):
+    serializer = ProductoSerializer(data=request.data)
+    if serializer.is_valid():
+        producto = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def actualizar_producto(request, producto_id):
+    try:
+        producto = Producto.objects.get(pk=producto_id)
+    except Producto.DoesNotExist:
+        return Response({'message': 'Producto no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ProductoSerializer(producto, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_producto(request, producto_id):
+    try:
+        producto = Producto.objects.get(pk=producto_id)
+    except Producto.DoesNotExist:
+        return Response({'message': 'Producto no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    producto.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_usuario(request, usuario_id):
+    try:
+        usuario = Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return Response({'message': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    if usuario.tipo_usuario == 'cliente':
+        serializer = ClienteSerializerGet(usuario)
+    elif usuario.tipo_usuario == 'prestador':
+        serializer = PrestadorServiciosSerializerGet(usuario)
+    else:
+        return Response({'message': 'Tipo de usuario no reconocido'}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def actualizar_usuario(request, usuario_id):
+    try:
+        usuario = Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return Response({'message': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    if usuario.tipo_usuario == 'cliente':
+        serializer = UsuarioClienteSerializer(
+            usuario, data=request.data, partial=True)
+    elif usuario.tipo_usuario == 'prestador':
+        serializer = UsuarioPrestadorSerializer(
+            usuario, data=request.data, partial=True)
+    else:
+        return Response({'message': 'Tipo de usuario no reconocido'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_usuario(request, usuario_id):
+    try:
+        usuario = Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return Response({'message': 'Usuario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    usuario.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_locales(request):
+    locales = Local.objects.all()
+    serializer = LocalGet(locales, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def crear_local(request):
+    prestador_id = request.data.get('prestador_id')
+    if not prestador_id:
+        return Response({'error': 'Prestador ID es requerido'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        prestador = PrestadorServicios.objects.get(usuario_ptr_id=prestador_id)
+    except PrestadorServicios.DoesNotExist:
+        return Response({'error': 'Prestador no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    local_data = {
+        'nombre': request.data.get('nombre'),
+        'direccion': request.data.get('direccion'),
+        'prestador': prestador.usuario_ptr_id,
+        'comuna': request.data.get('comuna'),
+        'hora_apertura': request.data.get('hora_apertura'),
+        'hora_cierre': request.data.get('hora_cierre')
+    }
+
+    serializer = LocalSerializer(data=local_data, context={'request': request})
+    if serializer.is_valid():
+        local = serializer.save()
+        return Response({
+            'message': 'Local creado con éxito',
+            'local_id': local.pk,
+            'nombre': local.nombre,
+            'direccion': local.direccion
+        }, status=status.HTTP_201_CREATED)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def actualizar_local(request, local_id):
+    try:
+        local = Local.objects.get(pk=local_id)
+    except Local.DoesNotExist:
+        return Response({'message': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = LocalSerializer(local, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_local(request, local_id):
+    try:
+        local = Local.objects.get(pk=local_id)
+    except Local.DoesNotExist:
+        return Response({'message': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    local.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def listar_inventarios_por_local(request, local_id):
+    try:
+        local = Local.objects.get(pk=local_id)
+    except Local.DoesNotExist:
+        return Response({'message': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    inventarios = Inventario.objects.filter(local=local)
+    serializer = InventarioSerializer(inventarios, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_productos_por_inventario(request, inventario_id):
+    try:
+        inventario = Inventario.objects.get(pk=inventario_id)
+    except Inventario.DoesNotExist:
+        return Response({'message': 'Inventario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    productos = Producto.objects.filter(inventario=inventario)
+    serializer = ProductoSerializer(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_productos_por_local(request, local_id):
+    try:
+        local = Local.objects.get(pk=local_id)
+    except Local.DoesNotExist:
+        return Response({'message': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    productos = Producto.objects.filter(local=local)
+    serializer = ProductoSerializer(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_inventarios(request):
+    local_id = request.query_params.get('local_id')
+    if local_id:
+        inventarios = Inventario.objects.filter(local_id=local_id)
+    else:
+        inventarios = Inventario.objects.all()
+    serializer = InventarioSerializer(inventarios, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def agregar_inventario(request):
+    serializer = InventarioSerializer(data=request.data)
+    if serializer.is_valid():
+        inventario = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def actualizar_inventario(request, inventario_id):
+    try:
+        inventario = Inventario.objects.get(pk=inventario_id)
+    except Inventario.DoesNotExist:
+        return Response({'message': 'Inventario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = InventarioSerializer(
+        inventario, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_inventario(request, inventario_id):
+    try:
+        inventario = Inventario.objects.get(pk=inventario_id)
+    except Inventario.DoesNotExist:
+        return Response({'message': 'Inventario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    inventario.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_producto(request, producto_id):
+    try:
+        producto = Producto.objects.get(pk=producto_id)
+    except Producto.DoesNotExist:
+        return Response({'message': 'Producto no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ProductoGet(producto)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_local(request, local_id):
+    try:
+        local = Local.objects.get(pk=local_id)
+    except Local.DoesNotExist:
+        return Response({'message': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = LocalGet(local)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_servicio(request, servicio_id):
+    try:
+        servicio = Servicio.objects.get(pk=servicio_id)
+    except Servicio.DoesNotExist:
+        return Response({'message': 'Servicio no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ServicioSerializer(servicio)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def obtener_inventario_detalle(request, inventario_id):
+    try:
+        inventario = Inventario.objects.get(pk=inventario_id)
+    except Inventario.DoesNotExist:
+        return Response({'message': 'Inventario no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    productos = Producto.objects.filter(local=inventario.local)
+    serializer = ProductoGet(productos, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def realizar_compra(request):
+    return Response({'message': 'Compra realizada con éxito'}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def listar_comunas(request):
+    try:
+        comunas = Comuna.objects.all()
+        serializer = ComunaSerializer(comunas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def ver_historial_compras(request, cliente_id):
     try:
-        # Realizar la consulta asegurando que se traen todas las relaciones
         historial = HistorialCompra.objects.filter(boleta__cita__cliente_id=cliente_id).select_related(
             'boleta', 'boleta__cita', 'boleta__cita__cliente', 'boleta__cita__prestador_serv', 'boleta__cita__local')
 
@@ -405,3 +519,133 @@ def ver_historial_compras(request, cliente_id):
     except Exception as e:
         logger.error(f"Error al obtener historial de compras: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def listar_servicios_aprestar(request):
+    servicios = ServicioAPrestar.objects.all()
+    serializer = ServicioAPrestarSerializer(servicios, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def listar_servicios_por_local(request, local_id):
+    servicios = ServicioAPrestar.objects.filter(local=local_id)
+    serializer = ServicioAPrestarSerializer(servicios, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def obtener_servicio_aprestar(request, id):
+    servicio = get_object_or_404(ServicioAPrestar, pk=id)
+    serializer = ServicioAPrestarSerializer(servicio)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+def crear_servicio_aprestar(request):
+    serializer = ServicioAPrestarSerializer(data=request.data)
+    if serializer.is_valid():
+        prestador_serv_id = request.data['prestador_serv']
+        especialidad = request.data.get('especialidad', '')
+
+        # Verificar si ya existe la misma especialidad para este prestador
+        if ServicioAPrestar.objects.filter(prestador_serv=prestador_serv_id, especialidad=especialidad).exists():
+            return Response(
+                {"error": "Esta especialidad ya existe para este prestador de servicios."},
+                status=status.HTTP_401_BAD_REQUEST
+            )
+
+        # Verificar si el prestador ya tiene el máximo de especialidades permitidas
+        if ServicioAPrestar.objects.filter(prestador_serv=prestador_serv_id).count() >= 7:
+            return Response(
+                {"error": "El prestador de servicios ya tiene el máximo de 7 especialidades permitidas."},
+                status=status.HTTP_402_BAD_REQUEST
+            )
+
+        # Guardar el nuevo servicio a prestar si pasa las validaciones
+        servicio_aprestar = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # Manejar errores de validación del serializer
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PATCH'])
+def actualizar_servicio_aprestar(request, id):
+    servicio = get_object_or_404(ServicioAPrestar, pk=id)
+    serializer = ServicioAPrestarSerializer(
+        servicio, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+def eliminar_servicio_aprestar(request, id):
+    try:
+        servicio = ServicioAPrestar.objects.get(id=id)
+        servicio.delete()
+        return Response(status=204)
+    except ServicioAPrestar.DoesNotExist:
+        return Response(status=404)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def listar_servicios(request):
+    servicios = Servicio.objects.all()
+    serializer = ServicioSerializer(servicios, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def crear_servicio(request):
+    serializer = ServicioSerializer(data=request.data)
+    if serializer.is_valid():
+        servicio = serializer.save()
+        return Response(ServicioSerializer(servicio).data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def eliminar_servicio(request, servicio_id):
+    servicio = get_object_or_404(Servicio, pk=servicio_id)
+    servicio.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def obtener_servicios_por_local(request, local_id):
+    try:
+        servicios = Servicio.objects.filter(local_id=local_id)
+        serializer = ServicioSerializer(servicios, many=True)
+        return Response(serializer.data)
+    except Local.DoesNotExist:
+        return Response({'error': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+# Asegúrate que el nombre del parámetro sea correcto
+def obtener_servicios_por_servicioaprestar(request, servicioaprestar_id):
+    try:
+        servicios = Servicio.objects.filter(
+            servicioaprestar__id=servicioaprestar_id)
+        serializer = ServicioSerializer(servicios, many=True)
+        return Response(serializer.data)
+    except Local.DoesNotExist:
+        return Response({'error': 'Local no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['PATCH'])
+@permission_classes([AllowAny])
+def actualizar_servicio(request, servicio_id):
+    servicio = get_object_or_404(Servicio, pk=servicio_id)
+    serializer = ServicioSerializer(servicio, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

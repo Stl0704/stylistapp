@@ -4,7 +4,6 @@ from django.contrib.auth import authenticate
 from .models import *
 from uuid import uuid4
 
-
 # PERSONA
 
 
@@ -16,8 +15,8 @@ class PersonaSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return Persona.objects.create(**validated_data)
 
-
 # PRESTADOR DE SERVICIOS
+
 
 class PrestadorServiciosSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,8 +24,8 @@ class PrestadorServiciosSerializer(serializers.ModelSerializer):
         fields = ['prestador_serv_id', 'user', 'especialidad',
                   'experiencia', 'presentacion', 'calificacion']
 
-
 # SERVICIO A PRESTAR
+
 
 class ServicioAPrestarSerializer(serializers.ModelSerializer):
     servicio = serializers.StringRelatedField()
@@ -38,182 +37,8 @@ class ServicioAPrestarSerializer(serializers.ModelSerializer):
         fields = ['servicio', 'prestador_serv',
                   'local', 'disponibilidad']
 
-
-# ENDPOINT GENERAL
-
-
-# python manage.py runserver 0.0.0.0:9000
-# PETICIONES :
-
-
-# USUARIOS:
-
-# PETICION INICIO SESION
-
-# {
-#   "user_name": "mario",
-#   "password": "12345678"
-# }
-
-
-# OBTENER DATA:
-
- #  GET /get_user/?user_name=mario&password=12345678
-
- #  http://127.0.0.1:9000/api/v1/get_user/?user_name=mario&password=12345678
-
-
-# REGISTRO DE PRODUCTO
-
-# {
-#     "nombre_prod": "fijador",
-#     "foto": "https://tuachl.vtexassets.com/arquivos/ids/157942-1200-auto?v=637459174431200000&width=1200&height=auto&aspect=true",
-#     "cantidad": 86,
-#     "a_la_venta": true,
-#     "precio": 99000,
-#     "precio_venta": 130000,
-#     "descripcion": "Contiene 9 extractos botánicos que contribuyen a recuperar la hidratación perdida y a conseguir un cabello con aspecto saludable y rejuvenecido.",
-#     "sku_id": "CCCTR0081127178",
-#     "local": null
-# }
-
-
-# SOLICITUD CREACION USUARIO CLIENTE:
-
-    # {
-    #     "user_name": "Francisco",
-    #     "email": "Francisco@example.com",
-    #     "password": "12345678",
-    #     "tipo_usuario": "cliente",
-    #     "fecha_nac": "1985-09-16",
-    #     "genero_id": 2,
-    #     "nombrep": "Francisco",
-    #     "apellido1_persona": "Fica",
-    #     "apellido2_persona": "Sánchez"
-    # }
-
-
-# SOLICITUD CREACION USUARIO PRESTADOR DE SERVICIOS
-
-
-# {
-#     "user_name": "Dani",
-#     "email": "usuario@example.com",
-#     "password": "12345678",
-#     "tipo_usuario": "prestador",
-#     "fecha_nac": "1990-01-01",
-#     "genero_id": 1,
-#     "nombrep": "Daniel",
-#     "apellido1_persona": "Paz",
-#     "apellido2_persona": "nose",
-#     "especialidad": "Cortes de cabello medievales",
-#     "experiencia": "300 años",
-#     "presentacion": "Experto en estilos antiguos y técnicas medievales de corte.",
-#     "calificacion": 0.0
-# }
-
-
-# LOCALES:
-
-# CREAR LOCAL
-
-# {
-#     "prestador_id": 21,
-#     "nombre": "Barbería El Futuro",
-#     "direccion": "Calle Futra 6000",
-#     "comuna": 5,
-#     "hora_apertura": "09:00:00",
-#     "hora_cierre": "20:00:00"
-# }
-
-
-# PRODUCTOS:
-
-# PETICION CREAR PRODUCTO
-
-# {
-#     "nombre_prod": "Crema Hidram m",
-#     "foto": "url-a-la-imagen-de-la-crema.jpg",
-#     "cantidad": 100,
-#     "a_la_venta": true,
-#     "precio": 18790.00,
-#     "precio_venta": 19990.00,
-#     "descripcion": "Crema hidratante para todo tipo de piel, 100ml.",
-#     "sku_id": "CREM100ML",
-#     "local": 1
-# }
-
-
-# PETICION MODIFICAR PRODUCTO:
-
-# {
-#   "user_id": 2,
-#   "cantidad": 50,
-#   "descripcion": "Contiene 56 extractos botánicos que contribuyen a recuperar la hidratación perdida y a conseguir un cabello con aspecto saludable y rejuvenecido.",
-#   "precio": 222222
-# }
-
-
-# ENDPOINT PARA ELIMINAR PRODUCTO:
-
-#   http://127.0.0.1:9000/api/v1/producto/eliminar/21/?user_id=21
-
-
-# OJO: SOLO EL ID OWNER DEL LOCAL PODRA ELIMINAR EL PRODUCTO
-
-
-# PETICION PARA AGENDAR CITA
-
-# {
-#     "tipo_usuario": "cliente",
-#     "cliente_id": 2,
-#     "prestador_serv_id": 3,
-#     "local_id": 1,
-#     "fecha_hora": "2024-06-30",
-#     "duracion": "01:00:00",
-#     "metodo_pago": "tarjeta",
-#     "monto_total": 120.00
-# }
-
-# GENDAR CITA SEGUNDA VERSION:
-
-# {
-#   "fecha_hora": "2024-07-01T10:00:00Z",
-#   "duracion": "01:00:00",
-#   "cliente_id": 23,
-#   "prestador_serv_id": 1,
-#   "local_id": 1,
-#   "metodo_pago": "tarjeta",
-#   "monto_total": 15000.00,
-#   "productos": [
-#     {
-#       "nombre": "Cepillo de pelo",
-#       "precio": 90000,
-#       "cantidad": 2
-#     }
-#   ],
-#   "tipo_usuario": "cliente"
-# }
-
-
-# BOLETA Y HISTORIAL DE COMPRAS
-
-
-# BOLETA
-
-
-# {
-#     "monto_total": "100.00",
-#     "metodo_pago": "tarjeta",
-#     "transaccion_id": "12345",
-#     "cita": "1"
-# }
-
-
-#   SERIALIZADORES FUNCIONALES
-
-
 # SERIALIZADOR CREACION USUARIO PRESTADOR DE SERVICIOS
+
 
 class UsuarioPrestadorSerializer(serializers.ModelSerializer):
     fecha_nac = serializers.DateField()
@@ -265,15 +90,42 @@ class UsuarioPrestadorSerializer(serializers.ModelSerializer):
         return usuario
 
 
+class ServicioSerializer(serializers.ModelSerializer):
+    servicioaprestar = serializers.PrimaryKeyRelatedField(
+        queryset=ServicioAPrestar.objects.all())
+    local = serializers.PrimaryKeyRelatedField(
+        queryset=Local.objects.all(), allow_null=True, required=False)
+
+    class Meta:
+        model = Servicio
+        fields = ['servicioaprestar', 'local', 'duracion_serv', 'nombre_serv',
+                  'precio', 'metodo_pago', 'foto', 'descripcion', 'disponibilidad']
+
+    def create(self, validated_data):
+        return Servicio.objects.create(**validated_data)
+
+
+class ServicioAPrestarSerializer(serializers.ModelSerializer):
+    especialidad = serializers.CharField(max_length=350)
+    prestador_serv = serializers.PrimaryKeyRelatedField(
+        queryset=PrestadorServicios.objects.all())
+    local = serializers.PrimaryKeyRelatedField(queryset=Local.objects.all())
+
+    class Meta:
+        model = ServicioAPrestar
+        fields = ['id', 'especialidad', 'prestador_serv', 'local']
+
 # SERIALIZADOR CREACION USUARIO CLIENTE
+
 
 class UsuarioClienteSerializer(serializers.ModelSerializer):
     fecha_nac = serializers.DateField()
-    genero_id = serializers.IntegerField()
+    genero_id = serializers.IntegerField()  # Asume que se pasa un ID de género
     nombrep = serializers.CharField(max_length=55)
     apellido1_persona = serializers.CharField(max_length=30)
     apellido2_persona = serializers.CharField(max_length=30)
     img = serializers.CharField(max_length=350, required=False)
+    # Puntos comienzan en cero y no se actualizan en la creación
     puntos = serializers.IntegerField(default=0, read_only=True)
 
     class Meta:
@@ -308,12 +160,14 @@ class UsuarioClienteSerializer(serializers.ModelSerializer):
         usuario = Cliente(**usuario_data, **cliente_data)
         usuario.set_password(password)
         usuario.save()
+
+        # Vinculación entre Persona y Usuario mediante PersonaUsuario
         PersonaUsuario.objects.create(persona=persona, user=usuario)
 
         return usuario
 
-
 # SERIALIZADOR  DE INICIO DE SESION:
+
 
 class LoginSerializer(serializers.Serializer):
     user_name = serializers.CharField(max_length=45)
@@ -326,7 +180,6 @@ class LoginSerializer(serializers.Serializer):
         if user is None:
             raise serializers.ValidationError("Credenciales inválidas.")
         return data
-
 
 # SERIALIZADOR TIPOS DE USUARIO :
 
@@ -370,13 +223,13 @@ class PrestadorServiciosSerializerGet(serializers.ModelSerializer):
         fields = ['usuario_ptr_id', 'user_name', 'email', 'tipo_usuario',
                   'especialidad', 'experiencia', 'presentacion', 'calificacion']
 
-
 # SERIALIZADOR LOCAL-PRESTADOR:
+
 
 class LocalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Local
-        fields = ['nombre', 'direccion', 'prestador',
+        fields = ['local_id', 'nombre', 'direccion', 'prestador',
                   'comuna', 'hora_apertura', 'hora_cierre']
 
     def create(self, validated_data):
@@ -385,8 +238,8 @@ class LocalSerializer(serializers.ModelSerializer):
             user = request.user
         return Local.objects.create(**validated_data)
 
-
 # GET LOCAL SERIALIZER
+
 
 class LocalGet(serializers.ModelSerializer):
     class Meta:
@@ -394,16 +247,55 @@ class LocalGet(serializers.ModelSerializer):
         fields = ['local_id', 'nombre', 'direccion', 'prestador',
                   'comuna', 'hora_apertura', 'hora_cierre']
 
-
 # COMUNA
+
 
 class ComunaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comuna
         fields = ['id', 'nombre', 'poblacion', 'area']
 
-
 # SERIALIZADOR CITAS:
+
+#          PETICION:
+
+
+#  OJO: LA PETICION DE "PRODUCTOS" SIEMPRE ESPERA UN RANGO EN LISTA ([])
+
+
+# {
+#     "tipo_usuario": "cliente",
+#     "cliente_id": 23,
+#     "prestador_serv_id": 3,
+#     "local_id": 1,
+#     "productos": [],
+#     "fecha_hora": "2024-06-30",
+#     "duracion": "01:00:00",
+#     "metodo_pago": "tarjeta",
+#     "monto_total": 120.00
+# }
+
+
+# PETICION CON LISTA DE PRODUCTOS:
+
+# {
+#   "fecha_hora": "2024-07-01T10:00:00Z",
+#   "duracion": "01:00:00",
+#   "cliente_id": 23,
+#   "prestador_serv_id": 1,
+#   "local_id": 1,
+#   "metodo_pago": "tarjeta",
+#   "monto_total": 15000.00,
+#   "productos": [
+#     {
+#       "nombre": "Cepillo de pelo",
+#       "precio": 90000,
+#       "cantidad": 2
+#     }
+#   ],
+#   "tipo_usuario": "cliente"
+# }
+
 
 class CitaSerializer(serializers.ModelSerializer):
     cliente_id = serializers.IntegerField(write_only=True)
@@ -470,15 +362,36 @@ class CitaSerializer(serializers.ModelSerializer):
                     f"Cada producto debe contener las claves: {required_keys}")
         return value
 
+# Serializador de inventario
+
+
+class InventarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Inventario
+        fields = ['inv_id', 'nombre_lista', 'local']
+
+    def create(self, validated_data):
+        return Inventario.objects.create(**validated_data)
 
 # SERIAlIZADOR QUE MANEJA LOS PRODUCTOS
 
 
+# SERIAlIZADOR QUE MANEJA LOS PRODUCTOS
 class ProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
-        fields = ['prod_id', 'nombre_prod', 'foto', 'cantidad',
-                  'a_la_venta', 'precio', 'precio_venta', 'descripcion', 'sku_id', 'local']
+        fields = [
+            'prod_id', 'nombre_producto', 'foto', 'cantidad', 'a_la_venta',
+            'precio_compra', 'precio_venta_x_mayor', 'precio_venta_x_menor',
+            'descripcion', 'sku_id', 'inventario', 'local'
+        ]
+
+    def validate(self, data):
+        if data['a_la_venta']:
+            if not data.get('precio_venta_x_mayor') or not data.get('precio_venta_x_menor'):
+                raise serializers.ValidationError(
+                    "Los precios de venta al por mayor y menor son obligatorios cuando el producto está a la venta.")
+        return data
 
     def create(self, validated_data):
         producto = Producto.objects.create(**validated_data)
@@ -501,7 +414,6 @@ class ProductoSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
 # GET PRODUCTOS:
 
 
@@ -511,11 +423,9 @@ class ProductoGet(serializers.ModelSerializer):
         fields = ['prod_id', 'nombre_prod', 'foto', 'cantidad', 'a_la_venta',
                   'precio', 'precio_venta', 'descripcion', 'sku_id', 'local']
 
-
 # SERIALIZERS DE BOLETA Y HISTORIAL DE COMPRA - CITAS
-
-
 # BOLETA
+
 
 class BoletaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -539,8 +449,8 @@ class BoletaSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
 # HISTORIAL
+
 
 class CitaDetalleSerializer(serializers.ModelSerializer):
     # Esto mostrará el nombre del cliente en lugar del ID

@@ -61,8 +61,21 @@ class PrestadorServicios(Usuario):
     )
 
 
+class ServicioAPrestar(models.Model):
+    especialidad = models.CharField(max_length=350)
+    prestador_serv = models.ForeignKey(
+        'PrestadorServicios', on_delete=models.CASCADE, related_name='servicios_a_prestar')
+    local = models.ForeignKey('Local', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.especialidad} en {self.local}"
+
+
 class Servicio(models.Model):
-    servicio_id = models.AutoField(primary_key=True)
+    servicioaprestar = models.ForeignKey(
+        ServicioAPrestar, on_delete=models.CASCADE, related_name='servicios')
+    local = models.ForeignKey(
+        'Local', on_delete=models.CASCADE, related_name='servicios', null=True, blank=True)
     duracion_serv = models.TimeField()
     nombre_serv = models.CharField(max_length=100)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
@@ -71,9 +84,7 @@ class Servicio(models.Model):
         max_length=1000, default='Descripción no proporcionada')
     descripcion = models.TextField(
         max_length=200, default='Descripción no proporcionada')
-
-    def __str__(self):
-        return self.nombre_serv
+    disponibilidad = models.BooleanField(default=False)
 
 
 class Comuna(models.Model):
@@ -100,31 +111,39 @@ class Local(models.Model):
         return self.nombre
 
 
+class Inventario(models.Model):
+    inv_id = models.AutoField(primary_key=True)
+    nombre_lista = models.CharField(max_length=255)
+    local = models.ForeignKey(Local, on_delete=models.CASCADE)
+
+
 class Producto(models.Model):
     prod_id = models.AutoField(primary_key=True)
-    nombre_prod = models.CharField(max_length=100)
+    nombre_producto = models.CharField(max_length=100)
     foto = models.CharField(max_length=1000, default='Imagen no proporcionada')
     cantidad = models.PositiveIntegerField(default=0)
     a_la_venta = models.BooleanField(default=False)
-    precio = models.DecimalField(max_digits=10, decimal_places=2)
-    precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_compra = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_venta_x_mayor = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True)
+    precio_venta_x_menor = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True)
     descripcion = models.TextField(
         max_length=200, default='Descripción no proporcionada')
     sku_id = models.CharField(max_length=50)
+    inventario = models.ForeignKey(
+        Inventario, on_delete=models.CASCADE, null=True, blank=True)
     local = models.ForeignKey(
-        'Local', on_delete=models.CASCADE, null=True, blank=True)
+        Local, on_delete=models.CASCADE, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.a_la_venta:
+            self.precio_venta_x_mayor = None
+            self.precio_venta_x_menor = None
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.nombre_prod
-
-
-class ServicioAPrestar(models.Model):
-    especialidad = models.CharField(max_length=350)
-    servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE)
-    prestador_serv = models.ForeignKey(
-        PrestadorServicios, on_delete=models.CASCADE, related_name='servicios_a_prestar')
-    local = models.ForeignKey(Local, on_delete=models.CASCADE)
-    disponibilidad = models.CharField(max_length=150)
+        return self.nombre_producto
 
 
 class HistorialCompra(models.Model):
