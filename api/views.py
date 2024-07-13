@@ -113,6 +113,34 @@ def agendar_cita(request):
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+# GET CITAS
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def listar_citas(request):
+
+    citas = Cita.objects.all()
+    serializer = CitaSerializer(citas, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+# GET POR LOCAL
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def listar_citas_por_local(request):
+
+    # Obtiene el ID del local desde los parámetros de la consulta
+    local_id = request.query_params.get('local_id')
+    if local_id is not None:
+        # Filtra las citas por local
+        citas = Cita.objects.filter(local__id=local_id)
+        serializer = CitaSerializer(citas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    else:
+        return Response({'error': 'No se proporcionó un local_id válido.'}, status=status.HTTP_400_BAD_REQUEST)
+
 # RETRASAR CITAS
 
 
